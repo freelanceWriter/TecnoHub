@@ -1,0 +1,2149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TechnoHub — Investment Ledger v2</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- jsPDF for PDF generation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js"></script>
+<!-- SheetJS for XLSX import -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- Supabase client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#0d0d0d;--paper:#f4efe4;--surface:#ece7d8;--white:#fff;
+  --border:#cfc8b4;--muted:#7a7060;
+  --gold:#c9a84c;--gold-dk:#8a6f2e;--gold-lt:#faf0d7;
+  --green:#2d7a4f;--green-lt:#e6f4ed;
+  --rust:#c94c4c;--rust-lt:#fde8e8;
+  --amber:#c97a2d;--amber-lt:#fef3e8;
+  --blue:#2d5fa4;--blue-lt:#e8effc;
+  --purple:#6d3fa4;--purple-lt:#f0eafc;
+  --teal:#1e8a7a;--teal-lt:#e6f7f5;
+  --r:6px;--rm:10px;--rl:14px;
+  --sh:0 4px 20px rgba(13,13,13,.10);
+}
+body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);min-height:100vh;font-size:14px;line-height:1.5}
+.hdr{background:var(--ink);height:64px;display:flex;align-items:center;padding:0 28px;justify-content:space-between;position:sticky;top:0;z-index:300;box-shadow:0 2px 16px rgba(0,0,0,.4)}
+.hdr-logo{display:flex;align-items:center;gap:12px}
+.logo-sq{width:38px;height:38px;background:var(--gold);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-weight:900;font-size:15px;color:var(--ink);flex-shrink:0}
+.logo-wrap{display:flex;flex-direction:column;gap:1px}
+.logo-name{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:#fff;line-height:1}
+.logo-tag{font-family:'DM Mono',monospace;font-size:9px;color:var(--gold);letter-spacing:.2em;text-transform:uppercase}
+.hdr-date{font-family:'DM Mono',monospace;font-size:11px;color:rgba(255,255,255,.4);letter-spacing:.06em}
+.hdr-actions{display:flex;gap:8px;align-items:center}
+.page{max-width:1380px;margin:0 auto;padding:28px 24px 60px}
+.sec-row{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.sec-row h2{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--ink)}
+.sec-bar{width:24px;height:3px;background:var(--gold);border-radius:2px;flex-shrink:0}
+.push{margin-left:auto;display:flex;gap:8px}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.s-card{background:var(--ink);border-radius:var(--rl);padding:18px 20px;position:relative;overflow:hidden}
+.s-card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--gold)}
+.s-lbl{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:8px}
+.s-val{font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:var(--gold);line-height:1;margin-bottom:4px}
+.s-hint{font-size:11px;color:rgba(255,255,255,.28)}
+.waj-panel{background:var(--ink);border-radius:var(--rl);padding:20px 24px;margin-bottom:20px}
+.waj-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px}
+.waj-title{font-family:'Playfair Display',serif;font-size:15px;color:var(--gold)}
+.waj-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.waj-card{background:rgba(255,255,255,.05);border:1px solid rgba(201,168,76,.18);border-radius:var(--rm);padding:14px 16px}
+.waj-lbl{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:6px}
+.waj-val{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--gold);line-height:1}
+.waj-val.g{color:#4dbe84}.waj-val.a{color:#e8a24a}.waj-val.t{color:#4dbdb0}
+.waj-hint{font-size:11px;color:rgba(255,255,255,.26);margin-top:3px}
+.f-card{background:var(--white);border:1px solid var(--border);border-radius:var(--rl);padding:24px;margin-bottom:20px;box-shadow:var(--sh)}
+.f-row3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px;align-items:end}
+.pct-strip{background:var(--surface);border:1px solid var(--border);border-radius:var(--rm);padding:14px 16px;margin-bottom:16px}
+.pct-head{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-dk);margin-bottom:12px}
+.pct-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.prev-bar{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;background:var(--ink);border-radius:var(--rm);padding:14px 18px;margin-bottom:18px}
+.prev-item{text-align:center}
+.prev-lbl{display:block;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:5px}
+.prev-val{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--gold)}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg label{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.fg input,.fg select{height:40px;padding:0 12px;border:1.5px solid var(--border);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:14px;color:var(--ink);background:var(--paper);outline:none;width:100%;transition:border-color .18s,box-shadow .18s,background .18s}
+.fg input:focus,.fg select:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,168,76,.14);background:#fff}
+.fg input::placeholder{color:#b5ae9e}
+.f-actions{display:flex;gap:10px;align-items:center}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:none;border-radius:var(--r);font-family:'DM Sans',sans-serif;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;line-height:1}
+.btn-lg{height:42px;padding:0 22px;font-size:14px}
+.btn-md{height:34px;padding:0 14px;font-size:13px}
+.btn-sm{height:28px;padding:0 10px;font-size:12px}
+.btn-gold{background:var(--gold);color:var(--ink)}.btn-gold:hover{background:var(--gold-dk);color:#fff}
+.btn-ghost{background:transparent;border:1.5px solid var(--border);color:var(--muted)}.btn-ghost:hover{border-color:var(--gold);color:var(--gold-dk)}
+.btn-green{background:var(--green);color:#fff}.btn-green:hover{background:#235e3c}
+.btn-red{background:var(--rust);color:#fff}.btn-red:hover{background:#a33b3b}
+.btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{background:#1e4a84}
+.btn-amber{background:var(--amber);color:#fff}.btn-amber:hover{background:#a8621f}
+.btn-purple{background:var(--purple);color:#fff}.btn-purple:hover{background:#562e85}
+.btn-teal{background:var(--teal);color:#fff}.btn-teal:hover{background:#166b5e}
+.btn-rust{background:var(--rust);color:#fff}.btn-rust:hover{background:#a33b3b}
+.overdue-pill{display:inline-flex;align-items:center;gap:3px;background:var(--rust-lt);color:var(--rust);border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700;white-space:nowrap;font-family:'DM Mono',monospace}
+.t-card{background:var(--white);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--sh);margin-bottom:24px}
+.t-toolbar{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tab{height:30px;padding:0 14px;border-radius:20px;border:1.5px solid var(--border);background:#fff;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;transition:all .15s}
+.tab.on{background:var(--ink);color:var(--gold);border-color:var(--ink)}
+.tab:not(.on):hover{border-color:var(--gold);color:var(--gold-dk)}
+.t-info{margin-left:auto;font-size:12px;color:var(--muted)}
+.t-scroll{overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;min-width:1120px}
+.tbl thead tr{background:var(--ink)}
+.tbl thead th{padding:10px 11px;text-align:left;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.11em;text-transform:uppercase;color:var(--gold);font-weight:400;white-space:nowrap}
+.tbl tbody tr{border-bottom:1px solid var(--surface);transition:background .12s}
+.tbl tbody tr:last-child{border-bottom:none}
+.tbl tbody tr:hover{background:var(--paper)}
+.tbl tbody td{padding:10px 11px;vertical-align:middle;white-space:nowrap}
+.cn{font-family:'DM Mono',monospace;font-size:12px}.cb{font-weight:600;font-size:14px}
+.cg{color:var(--green);font-weight:600}.cy{color:var(--gold-dk);font-weight:600}
+.ca{color:var(--amber);font-weight:500}.cm{color:var(--muted)}.cr{color:var(--rust);font-weight:600}
+.prog-wrap{display:flex;align-items:center;gap:6px;min-width:100px}
+.prog-bg{flex:1;height:6px;background:rgba(0,0,0,.08);border-radius:3px;overflow:hidden}
+.prog-fill{height:100%;border-radius:3px;transition:width .3s;background:var(--amber)}
+.prog-fill.full{background:var(--green)}
+.prog-pct{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);min-width:28px;text-align:right}
+.bdg{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+.bdg-paid{background:var(--green-lt);color:var(--green)}
+.bdg-partial{background:var(--blue-lt);color:var(--blue)}
+.bdg-unpaid{background:var(--amber-lt);color:var(--amber)}
+.bdg-overdue{background:var(--rust-lt);color:var(--rust)}
+.bdg-dot{width:5px;height:5px;border-radius:50%;background:currentColor}
+.acts{display:flex;gap:5px;align-items:center}
+.empty{text-align:center;padding:56px 20px;color:var(--muted)}
+.empty .ei{font-size:36px;margin-bottom:10px;opacity:.4}
+.empty p{font-size:13px}
+/* MODAL */
+.overlay{display:none;position:fixed;inset:0;background:rgba(13,13,13,.65);backdrop-filter:blur(3px);z-index:500;align-items:flex-start;justify-content:center;overflow-y:auto;padding:20px 16px}
+.overlay.open{display:flex}
+.modal{background:#fff;border-radius:var(--rl);width:600px;max-width:calc(100vw - 32px);box-shadow:0 8px 40px rgba(13,13,13,.22);animation:pop .22s ease;margin:auto;display:flex;flex-direction:column}
+@keyframes pop{from{transform:translateY(12px) scale(.98);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+.m-hdr{display:flex;align-items:center;justify-content:space-between;padding:18px 22px 14px;border-bottom:1px solid var(--surface);background:#fff;gap:10px;flex-shrink:0}
+.m-hdr h3{font-family:'Playfair Display',serif;font-size:17px;font-weight:700;flex:1}
+.m-close{width:28px;height:28px;border-radius:50%;border:none;background:var(--surface);color:var(--muted);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s;flex-shrink:0}
+.m-close:hover{background:var(--border);color:var(--ink)}
+.m-body{padding:14px 22px 4px;flex:1}
+.m-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--surface);gap:12px}
+.m-row:last-child{border-bottom:none}
+.m-lbl{font-size:12px;color:var(--muted);flex-shrink:0}
+.m-val{font-size:13px;font-weight:600;text-align:right}
+.m-val.mn{font-family:'DM Mono',monospace}
+.m-ftr{display:flex;justify-content:flex-end;gap:8px;padding:14px 22px 18px;border-top:1px solid var(--surface);flex-wrap:wrap;background:#fff;flex-shrink:0}
+/* INST SECTION */
+.inst-section{background:var(--surface);border-radius:var(--rm);padding:16px;margin:12px 0}
+.inst-head{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--gold-dk);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+.inst-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.inst-s-card{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;text-align:center}
+.inst-s-lbl{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:3px}
+.inst-s-val{font-family:'Playfair Display',serif;font-size:15px;font-weight:700}
+.inst-s-val.g{color:var(--green)}.inst-s-val.a{color:var(--amber)}.inst-s-val.cy{color:var(--gold-dk)}
+.inst-form{background:#fff;border:1.5px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:12px}
+.inst-form-title{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.inst-form .fg label{font-size:8px;letter-spacing:.1em}
+.inst-form .fg input{height:36px;font-size:13px;background:var(--paper)}
+.inst-form .fg input:focus{background:#fff}
+.inst-form-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:10px;align-items:end}
+.inst-form-row1{display:grid;grid-template-columns:1fr;gap:0;margin-bottom:10px}
+.inst-form-actions{display:flex;justify-content:flex-end;padding-top:4px}
+.adj-notice{background:var(--amber-lt);border:1px solid #e8c090;border-radius:var(--r);padding:8px 10px;margin-bottom:10px;font-size:11px;color:var(--amber);line-height:1.4}
+.rem-info{background:var(--gold-lt);border-radius:var(--r);padding:8px 12px;font-size:12px;color:var(--gold-dk);line-height:1.5;min-width:0}
+.fully-paid-msg{text-align:center;font-size:12px;color:var(--green);padding:8px;font-weight:600;background:var(--green-lt);border-radius:var(--r);margin-bottom:12px}
+/* INST LOG */
+.inst-log{max-height:180px;overflow-y:auto}
+.inst-log::-webkit-scrollbar{width:4px}.inst-log::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.inst-item{display:grid;grid-template-columns:80px 1fr auto auto auto auto;align-items:center;gap:6px;padding:7px 10px;border-radius:var(--r);background:#fff;margin-bottom:4px}
+.inst-item:last-child{margin-bottom:0}
+.ii-date{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)}
+.ii-note{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ii-amt{font-weight:700;color:var(--green);font-family:'DM Mono',monospace;font-size:12px;text-align:right}
+.ii-pocket{font-size:9px;padding:2px 5px;border-radius:3px;background:var(--purple-lt);color:var(--purple);font-weight:700;white-space:nowrap;font-family:'DM Mono',monospace}
+.ii-adj{font-size:9px;padding:2px 5px;border-radius:3px;background:var(--teal-lt);color:var(--teal);font-weight:700;white-space:nowrap;font-family:'DM Mono',monospace}
+.ii-del{width:22px;height:22px;border-radius:4px;border:none;background:var(--rust-lt);color:var(--rust);cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center;transition:background .15s;flex-shrink:0}
+.ii-del:hover{background:var(--rust);color:#fff}
+.no-inst{font-size:12px;color:var(--muted);text-align:center;padding:10px 0}
+/* WAJ MODAL */
+.waj-form-block{background:var(--surface);border-radius:var(--rm);padding:16px;margin-bottom:14px}
+.waj-form-title{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--gold-dk);margin-bottom:12px}
+.waj-form-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:10px;align-items:end}
+.waj-form-row .fg label{font-size:8px}
+.waj-form-row .fg input{height:36px;font-size:13px}
+.waj-form-row1{margin-bottom:10px}
+.waj-form-row1 .fg label{font-size:8px}
+.waj-form-row1 .fg input{height:36px;font-size:13px}
+.alloc-box{background:var(--ink);border-radius:var(--rm);padding:14px;margin-bottom:4px}
+.alloc-box-title{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:10px}
+.alloc-row{display:grid;grid-template-columns:1fr auto auto auto;align-items:center;gap:8px;padding:7px 8px;border-radius:var(--r);background:rgba(255,255,255,.06);margin-bottom:4px}
+.alloc-row:last-child{margin-bottom:0}
+.alloc-name{font-weight:600;color:#fff;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.alloc-rem{font-family:'DM Mono',monospace;font-size:10px;color:rgba(255,255,255,.4);text-align:right}
+.alloc-pay{font-family:'DM Mono',monospace;font-size:12px;color:#4dbe84;font-weight:700;text-align:right}
+.alloc-tag{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600;white-space:nowrap;text-align:center}
+.alloc-tag.full{color:#4dbe84;background:rgba(77,190,132,.18)}
+.alloc-tag.part{color:#e8a24a;background:rgba(232,162,74,.18)}
+.alloc-empty{font-size:12px;color:rgba(255,255,255,.35);text-align:center;padding:12px 0}
+.alloc-unused{font-size:11px;color:#e8a24a;text-align:right;margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,.1)}
+.comm-breakdown{margin-top:14px}
+.comm-bd-title{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.comm-bd-row{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:var(--r);background:var(--surface);margin-bottom:5px;gap:8px}
+.comm-bd-row:last-child{margin-bottom:0}
+.comm-bd-name{font-weight:600;font-size:13px}
+.comm-bd-right{text-align:right}
+.comm-bd-total{font-family:'Playfair Display',serif;font-size:13px;font-weight:700;color:var(--purple)}
+.comm-bd-detail{font-size:10px;color:var(--muted)}
+/* hist */
+.hist-lbl{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin:14px 0 6px;padding-top:14px;border-top:1px solid var(--surface)}
+/* PAYMENT HISTORY MODAL */
+.hist-modal{background:#fff;border-radius:var(--rl);width:680px;max-width:calc(100vw - 32px);box-shadow:0 8px 40px rgba(13,13,13,.22);animation:pop .22s ease;margin:auto;display:flex;flex-direction:column}
+.hist-tabs{display:flex;gap:0;border-bottom:2px solid var(--surface)}
+.hist-tab{flex:1;height:38px;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .15s;border-bottom:2px solid transparent;margin-bottom:-2px}
+.hist-tab.on{color:var(--gold-dk);border-bottom-color:var(--gold)}
+.hist-tab:hover:not(.on){color:var(--ink)}
+.ph-section{padding:16px}
+.ph-section.hidden{display:none}
+.ph-entry{display:grid;grid-template-columns:86px 1fr auto auto;align-items:center;gap:8px;padding:9px 12px;border-radius:var(--r);background:var(--surface);margin-bottom:6px;border-left:3px solid transparent}
+.ph-entry.profit-entry{border-left-color:var(--green)}
+.ph-entry.comm-entry{border-left-color:var(--amber)}
+.ph-entry.pocket-entry{border-left-color:var(--purple)}
+.ph-entry.adj-entry{border-left-color:var(--teal)}
+.ph-date{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)}
+.ph-desc{font-size:12px}
+.ph-desc strong{font-weight:600}
+.ph-amt{font-family:'DM Mono',monospace;font-size:13px;font-weight:700}
+.ph-amt.green{color:var(--green)}.ph-amt.amber{color:var(--amber)}.ph-amt.purple{color:var(--purple)}.ph-amt.teal{color:var(--teal)}
+.ph-tag{font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;font-family:'DM Mono',monospace;text-align:center;white-space:nowrap}
+.ph-tag.profit{background:var(--green-lt);color:var(--green)}
+.ph-tag.comm{background:var(--amber-lt);color:var(--amber)}
+.ph-tag.pocket{background:var(--purple-lt);color:var(--purple)}
+.ph-tag.adj{background:var(--teal-lt);color:var(--teal)}
+.ph-cycle-header{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);padding:10px 0 6px;border-top:1px solid var(--border);margin-top:8px}
+.ph-cycle-header:first-child{border-top:none;padding-top:0;margin-top:0}
+.ph-empty{text-align:center;padding:40px 0;color:var(--muted);font-size:13px}
+.ph-summary-row{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:var(--r);margin-bottom:8px;font-size:12px}
+.ph-summary-row.profit{background:var(--green-lt)}
+.ph-summary-row.comm{background:var(--amber-lt)}
+.ph-summary-row.pocket{background:var(--purple-lt)}
+/* WAJ HISTORY SECTION */
+.waj-hist-section{background:var(--surface);border-radius:var(--rm);padding:14px;margin-top:14px}
+.waj-hist-title{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--gold-dk);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+.waj-hist-item{display:grid;grid-template-columns:86px 1fr auto auto;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--r);background:#fff;margin-bottom:5px;border-left:3px solid var(--purple)}
+.waj-hist-item:last-child{margin-bottom:0}
+.waj-hist-item.pocket{border-left-color:var(--teal)}
+.whi-date{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)}
+.whi-desc{font-size:12px}
+.whi-amt{font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:var(--purple)}
+.whi-amt.teal{color:var(--teal)}
+.whi-tag{font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;font-family:'DM Mono',monospace;white-space:nowrap}
+.whi-tag.paid{background:var(--purple-lt);color:var(--purple)}
+.whi-tag.pocket{background:var(--teal-lt);color:var(--teal)}
+.whi-del{width:22px;height:22px;border-radius:4px;border:none;background:var(--rust-lt);color:var(--rust);cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.whi-del:hover{background:var(--rust);color:#fff}
+.waj-no-hist{font-size:12px;color:rgba(255,255,255,.35);text-align:center;padding:12px 0}
+.pocket-banner{background:var(--purple-lt);border:1.5px solid #c5b0e8;border-radius:var(--rm);padding:12px 16px;margin-bottom:14px}
+.pocket-banner-title{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--purple);margin-bottom:4px}
+.pocket-banner-val{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--purple)}
+.pocket-banner-hint{font-size:11px;color:var(--purple);margin-top:2px;opacity:.7}
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--ink);color:var(--gold);padding:10px 18px;border-radius:var(--rm);border-left:4px solid var(--gold);font-size:13px;font-weight:500;z-index:999;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none;max-width:360px;word-break:break-word}
+.toast.show{opacity:1;transform:translateY(0)}
+.sync-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid rgba(201,168,76,.24);border-radius:999px;background:rgba(255,255,255,.06);color:rgba(255,255,255,.82);font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;min-width:118px;justify-content:center}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:#b7ab93;box-shadow:0 0 0 2px rgba(255,255,255,.08)}
+.sync-pill.ok .sync-dot{background:#4dbe84}
+.sync-pill.syncing .sync-dot{background:#e8a24a;animation:pulse 1.2s infinite}
+.sync-pill.err .sync-dot{background:#c94c4c}
+@keyframes pulse{0%{opacity:.45}50%{opacity:1}100%{opacity:.45}}
+/* EDIT INVESTMENT MODAL */
+.edit-modal{background:#fff;border-radius:var(--rl);width:560px;max-width:calc(100vw - 32px);box-shadow:0 8px 40px rgba(13,13,13,.22);animation:pop .22s ease;margin:auto;display:flex;flex-direction:column}
+.edit-section{background:var(--surface);border-radius:var(--rm);padding:14px 16px;margin-bottom:14px}
+.edit-section-title{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--gold-dk);margin-bottom:12px}
+.edit-grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.edit-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px}
+.edit-grid2 .fg label,.edit-grid3 .fg label{font-size:8px}
+.edit-grid2 .fg input,.edit-grid3 .fg input{height:36px;font-size:13px}
+.inst-item-edit{display:none;grid-column:1/-1;gap:6px;padding:6px 0;align-items:end}
+.inst-item-edit.show{display:grid;grid-template-columns:1fr 1fr 1fr auto auto}
+.inst-item-edit .fg label{font-size:8px}
+.inst-item-edit .fg input{height:32px;font-size:12px}
+.ii-edit{width:22px;height:22px;border-radius:4px;border:none;background:var(--blue-lt);color:var(--blue);cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;transition:background .15s;flex-shrink:0}
+.ii-edit:hover{background:var(--blue);color:#fff}
+.ii-save{width:22px;height:22px;border-radius:4px;border:none;background:var(--green-lt);color:var(--green);cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;transition:background .15s;flex-shrink:0}
+.ii-save:hover{background:var(--green);color:#fff}
+.ii-cancel-edit{width:22px;height:22px;border-radius:4px;border:none;background:var(--surface);color:var(--muted);cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;transition:background .15s;flex-shrink:0}
+.ii-cancel-edit:hover{background:var(--border);color:var(--ink)}
+/* Pocket modal */
+.pocket-modal{background:#fff;border-radius:var(--rl);width:500px;max-width:calc(100vw - 32px);box-shadow:0 8px 40px rgba(13,13,13,.22);animation:pop .22s ease;margin:auto;display:flex;flex-direction:column}
+
+/* ═══════════════════════════════════════════
+   PDF REPORT MODAL
+═══════════════════════════════════════════ */
+.pdf-modal{background:#fff;border-radius:var(--rl);width:680px;max-width:calc(100vw - 32px);box-shadow:0 8px 40px rgba(13,13,13,.22);animation:pop .22s ease;margin:auto;display:flex;flex-direction:column}
+.report-type-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.report-type-card{background:var(--surface);border:2px solid var(--border);border-radius:var(--rm);padding:16px;cursor:pointer;transition:all .18s}
+.report-type-card:hover{border-color:var(--gold);background:var(--gold-lt)}
+.report-type-card.selected{border-color:var(--gold);background:var(--gold-lt)}
+.report-type-card.selected .rt-icon{background:var(--gold);color:var(--ink)}
+.rt-icon{width:36px;height:36px;border-radius:8px;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:10px;transition:all .18s}
+.rt-title{font-weight:700;font-size:13px;margin-bottom:3px}
+.rt-desc{font-size:11px;color:var(--muted)}
+.report-options{background:var(--surface);border-radius:var(--rm);padding:14px;margin-bottom:14px}
+.report-options-title{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--gold-dk);margin-bottom:12px}
+.chk-row{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;cursor:pointer}
+.chk-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--gold);cursor:pointer}
+.date-filter-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+
+/* ═══════════════════════════════════════════
+   IMPORT MODAL
+═══════════════════════════════════════════ */
+.import-modal{background:#fff;border-radius:var(--rl);width:720px;max-width:calc(100vw - 32px);box-shadow:0 8px 40px rgba(13,13,13,.22);animation:pop .22s ease;margin:auto;display:flex;flex-direction:column}
+.import-zone{border:2px dashed var(--border);border-radius:var(--rm);padding:36px 20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface);margin-bottom:14px}
+.import-zone:hover,.import-zone.drag-over{border-color:var(--gold);background:var(--gold-lt)}
+.import-zone-icon{font-size:40px;margin-bottom:10px;opacity:.6}
+.import-zone-title{font-weight:700;font-size:14px;margin-bottom:4px}
+.import-zone-sub{font-size:12px;color:var(--muted)}
+.import-format-tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.import-fmt-tab{height:32px;padding:0 14px;border-radius:20px;border:1.5px solid var(--border);background:#fff;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .15s}
+.import-fmt-tab.on{background:var(--ink);color:var(--gold);border-color:var(--ink)}
+.import-preview-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px}
+.import-preview-table th{background:var(--ink);color:var(--gold);padding:7px 9px;text-align:left;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase}
+.import-preview-table td{padding:6px 9px;border-bottom:1px solid var(--surface)}
+.import-preview-table tr:last-child td{border-bottom:none}
+.import-preview-table tr:hover td{background:var(--paper)}
+.import-status{padding:10px 12px;border-radius:var(--r);font-size:12px;margin-bottom:10px}
+.import-status.ok{background:var(--green-lt);color:var(--green)}
+.import-status.err{background:var(--rust-lt);color:var(--rust)}
+.import-status.warn{background:var(--amber-lt);color:var(--amber)}
+.template-section{background:var(--surface);border-radius:var(--rm);padding:14px;margin-bottom:14px}
+.template-section-title{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--gold-dk);margin-bottom:10px}
+.template-btn-row{display:flex;gap:8px;flex-wrap:wrap}
+.import-map-row{display:grid;grid-template-columns:140px 1fr;align-items:center;gap:10px;margin-bottom:8px}
+.import-map-row label{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.import-map-row select{height:32px;font-size:12px}
+.conflict-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--r);background:var(--amber-lt);margin-bottom:6px;font-size:12px}
+.conflict-row select{height:28px;font-size:11px;flex:1}
+
+/* RESPONSIVE */
+@media(max-width:1200px){.waj-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:1024px){.waj-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:900px){.stats-grid{grid-template-columns:repeat(2,1fr)}.waj-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:768px){.f-row3{grid-template-columns:1fr 1fr}.pct-cols{grid-template-columns:1fr 1fr}.page{padding:16px 14px 40px}.modal{width:calc(100vw - 32px);margin:auto}.report-type-grid{grid-template-columns:1fr}}
+@media(max-width:540px){.f-row3{grid-template-columns:1fr}.pct-cols{grid-template-columns:1fr}.prev-bar{grid-template-columns:1fr}.waj-grid{grid-template-columns:1fr 1fr}.hdr-date{display:none}.inst-form-row{grid-template-columns:1fr}.waj-form-row{grid-template-columns:1fr}.alloc-row{grid-template-columns:1fr auto auto}.inst-summary{grid-template-columns:repeat(3,1fr)}.overlay{padding:12px 8px}.date-filter-row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="hdr">
+  <div class="hdr-logo">
+    <div class="logo-sq">TH</div>
+    <div class="logo-wrap">
+      <div class="logo-name">TechnoHub</div>
+      <div class="logo-tag">Investment Ledger v2</div>
+    </div>
+  </div>
+  <div class="hdr-actions">
+    <button class="btn btn-amber btn-sm" onclick="openImportModal()" title="Import Data">📥 Import</button>
+    <button class="btn btn-blue btn-sm" onclick="openPdfModal()" title="Generate PDF Report">📄 PDF Report</button>
+    <div class="sync-pill" id="syncStatus" title="Supabase sync status"><span class="sync-dot"></span><span id="syncLabel">Local only</span></div>
+    <div class="hdr-date" id="hDate"></div>
+  </div>
+</header>
+
+<main class="page">
+  <div class="stats-grid">
+    <div class="s-card"><div class="s-lbl">Total Investors</div><div class="s-val" id="sTotal">0</div><div class="s-hint">Active records</div></div>
+    <div class="s-card"><div class="s-lbl">Total Capital</div><div class="s-val" id="sCapital">₨ 0</div><div class="s-hint">Deployed funds</div></div>
+    <div class="s-card"><div class="s-lbl">Profit Remaining</div><div class="s-val" id="sProfit">₨ 0</div><div class="s-hint">Unpaid balance</div></div>
+    <div class="s-card"><div class="s-lbl">Overdue</div><div class="s-val" id="sOverdue" style="color:#e8534a">0</div><div class="s-hint">Past due date</div></div>
+  </div>
+
+  <div class="waj-panel">
+    <div class="waj-top">
+      <div class="waj-title">◆ Wajahat Ahmed — Commission Ledger</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-teal btn-sm" onclick="openWajHistModal()">📋 Commission History</button>
+        <button class="btn btn-purple btn-sm" onclick="openWajModal()">💸 Pay Wajahat Commission</button>
+      </div>
+    </div>
+    <div class="waj-grid">
+      <div class="waj-card"><div class="waj-lbl">Total Commission</div><div class="waj-val" id="wTotal">₨ 0</div><div class="waj-hint">All cycles</div></div>
+      <div class="waj-card"><div class="waj-lbl">Commission Paid</div><div class="waj-val g" id="wPaid">₨ 0</div><div class="waj-hint">Received</div></div>
+      <div class="waj-card"><div class="waj-lbl">Commission Remaining</div><div class="waj-val a" id="wPending">₨ 0</div><div class="waj-hint">To be paid</div></div>
+      <div class="waj-card"><div class="waj-lbl">Pocket Advances</div><div class="waj-val t" id="wPocket">₨ 0</div><div class="waj-hint">Paid by Wajahat</div></div>
+      <div class="waj-card"><div class="waj-lbl">Active Cycles</div><div class="waj-val" id="wCycles">0</div><div class="waj-hint">Rolling</div></div>
+    </div>
+  </div>
+
+  <div class="sec-row"><div class="sec-bar"></div><h2>Add New Investment</h2></div>
+  <div class="f-card">
+    <div class="f-row3">
+      <div class="fg"><label>Investor Name</label><input type="text" id="fName" placeholder="e.g. Adnan Sheikh"></div>
+      <div class="fg"><label>Investment Amount (₨)</label><input type="number" id="fAmount" placeholder="500000" min="1"></div>
+      <div class="fg"><label>Investment Start Date</label><input type="date" id="fStart"></div>
+    </div>
+    <div class="pct-strip">
+      <div class="pct-head">⚙ Set Profit &amp; Commission Percentages</div>
+      <div class="pct-cols">
+        <div class="fg"><label>Investor Profit % (per 40-day cycle)</label><input type="number" id="fIPct" placeholder="e.g. 9" min="0" max="100" step="0.5"></div>
+        <div class="fg"><label>Wajahat Ahmed Commission %</label><input type="number" id="fWPct" placeholder="e.g. 4.5" min="0" max="100" step="0.5"></div>
+      </div>
+    </div>
+    <div class="prev-bar">
+      <div class="prev-item"><span class="prev-lbl">Profit Due Date (+40 days)</span><div class="prev-val" id="pDue">—</div></div>
+      <div class="prev-item"><span class="prev-lbl">Investor Profit (₨)</span><div class="prev-val" id="pProfit">₨ 0</div></div>
+      <div class="prev-item"><span class="prev-lbl">Wajahat Commission (₨)</span><div class="prev-val" id="pComm">₨ 0</div></div>
+    </div>
+    <div class="f-actions">
+      <button class="btn btn-gold btn-lg" onclick="addInv()">＋ Add Investment</button>
+      <button class="btn btn-ghost btn-lg" onclick="clearForm()">✕ Clear</button>
+    </div>
+  </div>
+
+  <div class="sec-row">
+    <div class="sec-bar"></div>
+    <h2>Investment Register</h2>
+    <div class="push">
+      <button class="btn btn-ghost btn-md" onclick="exportCSV()">⬇ CSV</button>
+      <button class="btn btn-ghost btn-md" onclick="exportJSON()">⬇ JSON</button>
+      <button class="btn btn-blue btn-md" onclick="openPdfModal()">📄 PDF</button>
+    </div>
+  </div>
+  <div class="t-card">
+    <div class="t-toolbar">
+      <div class="tabs">
+        <button class="tab on" onclick="setF('all',this)">All</button>
+        <button class="tab" onclick="setF('unpaid',this)">Unpaid</button>
+        <button class="tab" onclick="setF('partial',this)">Partial</button>
+        <button class="tab" onclick="setF('paid',this)">Fully Paid</button>
+        <button class="tab" onclick="setF('overdue',this)">Overdue</button>
+      </div>
+      <div class="t-info"><strong id="rowCount">0</strong> records</div>
+    </div>
+    <div class="t-scroll">
+      <table class="tbl">
+        <thead><tr>
+          <th>#</th><th>Investor</th><th>Amount</th><th>Start</th><th>Due Date</th><th>Overdue</th>
+          <th>Profit Total</th><th>Profit Paid</th><th>Profit Rem.</th><th>Progress</th>
+          <th>Comm. Total</th><th>Comm. Paid</th><th>Comm. Rem.</th><th>Cycle</th><th>Status</th><th>Actions</th>
+        </tr></thead>
+        <tbody id="tBody"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- INVESTOR MODAL -->
+<div class="overlay" id="overlay" onclick="ovBgClick(event)">
+  <div class="modal" id="modal">
+    <div class="m-hdr"><h3 id="mTitle">Details</h3><button class="m-close" onclick="closeModal()">✕</button></div>
+    <div class="m-body" id="mBody"></div>
+    <div class="m-ftr" id="mFtr"></div>
+  </div>
+</div>
+
+<!-- WAJ MODAL -->
+<div class="overlay" id="wajOverlay" onclick="wajBgClick(event)">
+  <div class="modal" id="wajModal">
+    <div class="m-hdr"><h3>💸 Pay Wajahat Ahmed</h3><button class="m-close" onclick="closeWajModal()">✕</button></div>
+    <div class="m-body" id="wajBody"></div>
+    <div class="m-ftr" id="wajFtr"></div>
+  </div>
+</div>
+
+<!-- WAJ HISTORY MODAL -->
+<div class="overlay" id="wajHistOverlay" onclick="wajHistBgClick(event)">
+  <div class="hist-modal" id="wajHistModal">
+    <div class="m-hdr">
+      <h3>📋 Wajahat Ahmed — Commission History</h3>
+      <button class="m-close" onclick="closeWajHistModal()">✕</button>
+    </div>
+    <div class="m-body" id="wajHistBody" style="padding:0 0 4px"></div>
+    <div class="m-ftr"><button class="btn btn-ghost btn-md" onclick="closeWajHistModal()">Close</button></div>
+  </div>
+</div>
+
+<!-- INVESTOR PAYMENT HISTORY MODAL -->
+<div class="overlay" id="payHistOverlay" onclick="payHistBgClick(event)">
+  <div class="hist-modal" id="payHistModal">
+    <div class="m-hdr">
+      <h3 id="payHistTitle">Payment History</h3>
+      <button class="m-close" onclick="closePayHistModal()">✕</button>
+    </div>
+    <div style="border-bottom:1px solid var(--surface)">
+      <div class="hist-tabs" id="histTabs">
+        <button class="hist-tab on" onclick="switchHistTab('all',this)">All Payments</button>
+        <button class="hist-tab" onclick="switchHistTab('profit',this)">Investor Profit</button>
+        <button class="hist-tab" onclick="switchHistTab('comm',this)">Commission</button>
+        <button class="hist-tab" onclick="switchHistTab('cycles',this)">Cycle Archive</button>
+      </div>
+    </div>
+    <div class="m-body" id="payHistBody" style="padding:0;max-height:70vh;overflow-y:auto"></div>
+    <div class="m-ftr"><button class="btn btn-ghost btn-md" onclick="closePayHistModal()">Close</button></div>
+  </div>
+</div>
+
+<!-- POCKET PAYMENT MODAL -->
+<div class="overlay" id="pocketOverlay" onclick="pocketBgClick(event)">
+  <div class="pocket-modal" id="pocketModal">
+    <div class="m-hdr">
+      <h3>👛 Pocket Payment by Wajahat</h3>
+      <button class="m-close" onclick="closePocketModal()">✕</button>
+    </div>
+    <div class="m-body" id="pocketBody"></div>
+    <div class="m-ftr" id="pocketFtr"></div>
+  </div>
+</div>
+
+<!-- EDIT INVESTMENT MODAL -->
+<div class="overlay" id="editOverlay" onclick="editBgClick(event)">
+  <div class="edit-modal" id="editModal">
+    <div class="m-hdr">
+      <h3 id="editTitle">Edit Investment</h3>
+      <button class="m-close" onclick="closeEditModal()">&#10005;</button>
+    </div>
+    <div class="m-body" id="editBody"></div>
+    <div class="m-ftr">
+      <button class="btn btn-ghost btn-md" onclick="closeEditModal()">Cancel</button>
+      <button class="btn btn-gold btn-md" onclick="saveEditInv()">&#10003; Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- PDF REPORT MODAL (NEW) -->
+<div class="overlay" id="pdfOverlay" onclick="pdfBgClick(event)">
+  <div class="pdf-modal" id="pdfModal">
+    <div class="m-hdr">
+      <h3>📄 Generate PDF Report</h3>
+      <button class="m-close" onclick="closePdfModal()">✕</button>
+    </div>
+    <div class="m-body" id="pdfBody" style="max-height:70vh;overflow-y:auto;padding:14px 22px"></div>
+    <div class="m-ftr">
+      <button class="btn btn-ghost btn-md" onclick="closePdfModal()">Cancel</button>
+      <button class="btn btn-blue btn-md" onclick="generatePDF()">📄 Generate &amp; Download PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT MODAL (NEW) -->
+<div class="overlay" id="importOverlay" onclick="importBgClick(event)">
+  <div class="import-modal" id="importModal">
+    <div class="m-hdr">
+      <h3>📥 Import Data</h3>
+      <button class="m-close" onclick="closeImportModal()">✕</button>
+    </div>
+    <div class="m-body" id="importBody" style="max-height:75vh;overflow-y:auto;padding:14px 22px"></div>
+    <div class="m-ftr" id="importFtr">
+      <button class="btn btn-ghost btn-md" onclick="closeImportModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<input type="file" id="importFileInput" style="display:none" accept=".csv,.json,.xlsx,.xls">
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// DATA & PERSISTENCE
+// ════════════════════════════════════════════════════════════════
+var D=[],filter='all',activeId=null,instIdCtr=1;
+var wajHistory=[];
+var importParsedData=null;
+var importFmt='csv';
+var supabaseClient=null;
+var supabaseEnabled=false;
+var remoteReady=false;
+var syncInFlight=false;
+var syncQueued=false;
+var syncTimer=null;
+var lastSyncedSnapshot='';
+var SUPABASE_URL='https://pqnkdphuyjwuxgopsszs.supabase.co';
+var SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxbmtkcGh1eWp3dXhnb3Bzc3pzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0NTcwODgsImV4cCI6MjA5MTAzMzA4OH0.Hp7nhmtFrKfWrxOUKZnOHZAPlmy0m4VyFgDmNHmMMsA';
+var SUPABASE_TABLE='investment_ledger_state';
+var SUPABASE_ROW_ID='technohub-ledger';
+
+function statePayload(){return {D:D,wajHistory:wajHistory};}
+function snapshotState(v){try{return JSON.stringify(v||statePayload());}catch(e){return String(Date.now());}}
+function updateSyncStatus(label,mode){
+  var pill=document.getElementById('syncStatus');
+  var lbl=document.getElementById('syncLabel');
+  if(lbl)lbl.textContent=label||'Local only';
+  if(pill){
+    pill.classList.remove('ok','syncing','err');
+    if(mode)pill.classList.add(mode);
+  }
+}
+function normalizeState(input){
+  var parsed=input;
+  if(Array.isArray(parsed))parsed={D:parsed,wajHistory:[]};
+  if(!parsed||typeof parsed!=='object')parsed={D:[],wajHistory:[]};
+  var safeD=Array.isArray(parsed.D)?parsed.D:(Array.isArray(parsed.investors)?parsed.investors:[]);
+  var safeWaj=Array.isArray(parsed.wajHistory)?parsed.wajHistory:[];
+  safeD.forEach(function(inv){
+    if(!inv.profitInstallments)inv.profitInstallments=[];
+    if(!inv.commInstallments)inv.commInstallments=[];
+    if(inv.profitPaid===undefined)inv.profitPaid=0;
+    if(inv.commPaid===undefined)inv.commPaid=0;
+    if(!inv.history)inv.history=[];
+    if(!inv.cycle)inv.cycle=1;
+    if(!inv.pocketPayments)inv.pocketPayments=[];
+  });
+  var all=safeD.flatMap(function(inv){
+    return inv.profitInstallments.map(function(i){return i.id;}).concat(inv.commInstallments.map(function(i){return i.id;}));
+  }).filter(Boolean);
+  var wids=safeWaj.map(function(h){return h.id;}).filter(Boolean);
+  var allIds=all.concat(wids);
+  instIdCtr=allIds.length?Math.max.apply(null,allIds)+1:1;
+  return {D:safeD,wajHistory:safeWaj};
+}
+function applyState(input){
+  var normalized=normalizeState(input);
+  D=normalized.D;
+  wajHistory=normalized.wajHistory;
+  try{localStorage.setItem('th_v7',JSON.stringify(statePayload()));}catch(e){}
+}
+function loadLocalData(){
+  try{
+    var raw=localStorage.getItem('th_v7')||localStorage.getItem('th_v6')||localStorage.getItem('th_v5')||localStorage.getItem('th_v4')||localStorage.getItem('th_v3');
+    if(raw)applyState(JSON.parse(raw));
+    else applyState({D:[],wajHistory:[]});
+    lastSyncedSnapshot=snapshotState();
+    updateSyncStatus('Local cache','ok');
+  }catch(e){
+    D=[];wajHistory=[];instIdCtr=1;
+    lastSyncedSnapshot=snapshotState();
+    updateSyncStatus('Local reset','err');
+  }
+}
+function save(){
+  try{localStorage.setItem('th_v7',JSON.stringify(statePayload()));}catch(e){}
+  queueRemoteSave(550);
+}
+async function initSupabase(){
+  if(!window.supabase||!SUPABASE_URL||!SUPABASE_ANON_KEY){
+    updateSyncStatus('Local only','err');
+    return false;
+  }
+  try{
+    supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+    supabaseEnabled=true;
+    updateSyncStatus('Supabase ready','syncing');
+    return true;
+  }catch(err){
+    console.error('Supabase init failed:',err);
+    updateSyncStatus('Supabase error','err');
+    return false;
+  }
+}
+async function pushStateToSupabase(skipIfUnchanged){
+  if(!supabaseEnabled||!supabaseClient)return false;
+  var payload=statePayload();
+  var snapshot=snapshotState(payload);
+  if(skipIfUnchanged&&snapshot===lastSyncedSnapshot){
+    remoteReady=true;
+    updateSyncStatus('Synced','ok');
+    return true;
+  }
+  syncInFlight=true;
+  updateSyncStatus('Saving…','syncing');
+  var res=await supabaseClient.from(SUPABASE_TABLE).upsert([
+    {id:SUPABASE_ROW_ID,payload:payload,updated_at:new Date().toISOString()}
+  ],{onConflict:'id'});
+  syncInFlight=false;
+  if(res.error){
+    console.error('Supabase save failed:',res.error);
+    updateSyncStatus('Sync error','err');
+    return false;
+  }
+  lastSyncedSnapshot=snapshot;
+  remoteReady=true;
+  updateSyncStatus('Synced','ok');
+  if(syncQueued){
+    syncQueued=false;
+    queueRemoteSave(120);
+  }
+  return true;
+}
+function queueRemoteSave(delay){
+  if(!supabaseEnabled||!remoteReady)return;
+  if(syncInFlight){syncQueued=true;return;}
+  clearTimeout(syncTimer);
+  syncTimer=setTimeout(function(){pushStateToSupabase(true);},delay||550);
+}
+async function loadRemoteData(){
+  if(!supabaseEnabled||!supabaseClient)return false;
+  updateSyncStatus('Loading cloud…','syncing');
+  var res=await supabaseClient.from(SUPABASE_TABLE).select('payload,updated_at').eq('id',SUPABASE_ROW_ID).maybeSingle();
+  if(res.error&&res.status!==406){
+    throw res.error;
+  }
+  if(res.data&&res.data.payload){
+    var remoteSnapshot=snapshotState(res.data.payload);
+    var localSnapshot=snapshotState();
+    if(remoteSnapshot!==localSnapshot){
+      applyState(res.data.payload);
+      lastSyncedSnapshot=remoteSnapshot;
+      updateSyncStatus('Cloud loaded','ok');
+    }else{
+      lastSyncedSnapshot=remoteSnapshot;
+      updateSyncStatus('Synced','ok');
+    }
+    remoteReady=true;
+    return true;
+  }
+  remoteReady=true;
+  return pushStateToSupabase(true);
+}
+function initLocalUi(){
+  document.getElementById('hDate').textContent=new Date().toLocaleDateString('en-PK',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  var _n=new Date();
+  document.getElementById('fStart').value=_n.getFullYear()+'-'+pad(_n.getMonth()+1)+'-'+pad(_n.getDate());
+  ['fAmount','fStart','fIPct','fWPct'].forEach(function(id){document.getElementById(id).addEventListener('input',livePreview);});
+}
+async function bootstrapApp(){
+  loadLocalData();
+  initLocalUi();
+  render();
+  livePreview();
+  var ok=await initSupabase();
+  if(!ok)return;
+  try{
+    await loadRemoteData();
+    render();
+    livePreview();
+  }catch(err){
+    console.error('Supabase load failed:',err);
+    updateSyncStatus('Setup needed','err');
+    toast('⚠ Supabase connected, but table or policy setup is missing. Run the SQL setup file once in Supabase, then redeploy.');
+  }
+}
+
+// UTILS
+function pad(n){return String(n).padStart(2,'0');}
+function tod(){var n=new Date();return n.getFullYear()+'-'+pad(n.getMonth()+1)+'-'+pad(n.getDate());}
+function addDays(ds,n){var p=ds.split('-').map(Number),dt=new Date(p[0],p[1]-1,p[2]);dt.setDate(dt.getDate()+n);return dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate());}
+function daysBetween(a,b){var pa=a.split('-').map(Number),pb=b.split('-').map(Number);return Math.round((new Date(pb[0],pb[1]-1,pb[2])-new Date(pa[0],pa[1]-1,pa[2]))/86400000);}
+function fmtD(ds){if(!ds||ds.length!==10)return'—';var p=ds.split('-').map(Number);return new Date(p[0],p[1]-1,p[2]).toLocaleDateString('en-PK',{day:'2-digit',month:'short',year:'numeric'});}
+function set(id,t){var el=document.getElementById(id);if(el)el.textContent=t;}
+function fmt(n){return new Intl.NumberFormat('en-PK',{maximumFractionDigits:0}).format(n||0);}
+function rnd(n){return Math.round((n||0)*100)/100;}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function nextId(){return instIdCtr++;}
+
+// BUSINESS LOGIC
+function profitRem(inv){return Math.max(0,rnd(inv.profit-inv.profitPaid));}
+function commRem(inv){return Math.max(0,rnd(inv.commission-inv.commPaid));}
+function profitPct(inv){return inv.profit>0?Math.min(100,inv.profitPaid/inv.profit*100):0;}
+function isFullyPaid(inv){return profitRem(inv)<=0&&commRem(inv)<=0;}
+function isPastDue(inv){return inv.dueDate<tod();}
+function overdueDays(inv){return(isPastDue(inv)&&!isFullyPaid(inv))?Math.max(0,daysBetween(inv.dueDate,tod())):0;}
+function cycleStatus(inv){
+  if(isFullyPaid(inv))return'paid';
+  if(inv.profitPaid>0||inv.commPaid>0)return'partial';
+  if(isPastDue(inv))return'overdue';
+  return'unpaid';
+}
+function bdg(inv){
+  var st=cycleStatus(inv);
+  if(st==='paid')return'<span class="bdg bdg-paid"><span class="bdg-dot"></span>Fully Paid</span>';
+  if(st==='partial')return'<span class="bdg bdg-partial"><span class="bdg-dot"></span>Partial</span>';
+  if(st==='overdue')return'<span class="bdg bdg-overdue"><span class="bdg-dot"></span>Overdue</span>';
+  return'<span class="bdg bdg-unpaid"><span class="bdg-dot"></span>Unpaid</span>';
+}
+
+function totalPocketAdvances(){return rnd(wajHistory.filter(function(h){return h.type==='pocket';}).reduce(function(s,h){return s+h.amount;},0));}
+function totalWajPaid(){return rnd(wajHistory.filter(function(h){return h.type==='paid';}).reduce(function(s,h){return s+h.amount;},0));}
+
+// LIVE PREVIEW
+function livePreview(){
+  var amt=parseFloat(document.getElementById('fAmount').value)||0;
+  var d=document.getElementById('fStart').value;
+  var ip=parseFloat(document.getElementById('fIPct').value)||0;
+  var wp=parseFloat(document.getElementById('fWPct').value)||0;
+  set('pProfit','₨ '+fmt(amt*ip/100));
+  set('pComm','₨ '+fmt(amt*wp/100));
+  set('pDue',(d&&d.length===10)?fmtD(addDays(d,40)):'—');
+}
+
+// ADD INVESTMENT
+function addInv(){
+  try{
+    var nameEl=document.getElementById('fName'),amtEl=document.getElementById('fAmount'),
+        startEl=document.getElementById('fStart'),ipctEl=document.getElementById('fIPct'),wpctEl=document.getElementById('fWPct');
+    var name=nameEl.value.trim(),amtRaw=amtEl.value.trim(),start=startEl.value.trim(),ipctRaw=ipctEl.value.trim(),wpctRaw=wpctEl.value.trim();
+    if(!name){nameEl.focus();return toast('⚠ Investor name required.');}
+    if(!amtRaw){amtEl.focus();return toast('⚠ Amount required.');}
+    var amt=parseFloat(amtRaw);
+    if(isNaN(amt)||amt<=0){amtEl.focus();return toast('⚠ Enter a valid amount > 0.');}
+    if(!start||start.length!==10){startEl.focus();return toast('⚠ Select a valid start date.');}
+    if(ipctRaw===''){ipctEl.focus();return toast('⚠ Enter investor profit % (can be 0).');}
+    var ipct=parseFloat(ipctRaw);
+    if(isNaN(ipct)||ipct<0||ipct>100){ipctEl.focus();return toast('⚠ Profit % must be 0–100.');}
+    if(wpctRaw===''){wpctEl.focus();return toast('⚠ Enter Wajahat commission % (can be 0).');}
+    var wpct=parseFloat(wpctRaw);
+    if(isNaN(wpct)||wpct<0||wpct>100){wpctEl.focus();return toast('⚠ Commission % must be 0–100.');}
+    D.push({id:Date.now(),name:name,amount:amt,startDate:start,dueDate:addDays(start,40),
+      ipct:ipct,wpct:wpct,profit:rnd(amt*ipct/100),commission:rnd(amt*wpct/100),
+      profitPaid:0,commPaid:0,profitInstallments:[],commInstallments:[],pocketPayments:[],cycle:1,history:[]});
+    save();render();clearForm();
+    toast('✓ Investment added for '+name+'!');
+  }catch(e){toast('⚠ '+e.message);console.error(e);}
+}
+
+// ADD PROFIT INSTALLMENT
+function addProfitInst(invId){
+  try{
+    var inv=D.find(function(i){return i.id===invId;});
+    if(!inv)return toast('⚠ Not found.');
+    var amtEl=document.getElementById('pi_amt_'+invId),dateEl=document.getElementById('pi_date_'+invId),adjEl=document.getElementById('pi_adj_'+invId);
+    if(!amtEl||!dateEl)return toast('⚠ Form not found. Reopen modal.');
+    var amtRaw=amtEl.value.trim();
+    if(!amtRaw)return toast('⚠ Enter a payment amount.');
+    var amt=parseFloat(amtRaw);
+    if(isNaN(amt)||amt<=0)return toast('⚠ Enter a valid amount.');
+    var date=dateEl.value||tod();
+    if(adjEl&&adjEl.value.trim()!==''){
+      var adjAmt=parseFloat(adjEl.value.trim());
+      if(!isNaN(adjAmt)&&adjAmt>0){
+        inv.profit=rnd(adjAmt);
+        if(inv.amount>0)inv.ipct=rnd(adjAmt/inv.amount*100);
+      }
+    }
+    var rem=profitRem(inv);
+    if(amt>rem+0.005)return toast('⚠ Amount ₨'+fmt(amt)+' exceeds remaining ₨'+fmt(rem)+'\nUse Adjusted Total Profit field to increase the ceiling first.');
+    var od=Math.max(0,daysBetween(inv.dueDate,date));
+    var note=od>0?('Paid '+od+'d late'):'';
+    inv.profitInstallments.push({id:nextId(),date:date,amount:amt,note:note,lateDays:od});
+    inv.profitPaid=rnd(inv.profitInstallments.reduce(function(s,i){return s+i.amount;},0));
+    save();render();openModal(invId);
+    toast('✓ Profit ₨'+fmt(amt)+' recorded'+(od>0?' ('+od+'d late)':'')+'.');
+  }catch(e){toast('⚠ '+e.message);console.error(e);}
+}
+
+// ADD COMM INSTALLMENT
+function addCommInst(invId){
+  try{
+    var inv=D.find(function(i){return i.id===invId;});
+    if(!inv)return toast('⚠ Not found.');
+    var amtEl=document.getElementById('ci_amt_'+invId),dateEl=document.getElementById('ci_date_'+invId);
+    if(!amtEl||!dateEl)return toast('⚠ Form not found. Reopen modal.');
+    var amtRaw=amtEl.value.trim();
+    if(!amtRaw)return toast('⚠ Enter a payment amount.');
+    var amt=parseFloat(amtRaw);
+    if(isNaN(amt)||amt<=0)return toast('⚠ Enter a valid amount.');
+    var date=dateEl.value||tod();
+    var rem=commRem(inv);
+    if(amt>rem+0.005&&rem>0)return toast('⚠ Amount ₨'+fmt(amt)+' exceeds remaining ₨'+fmt(rem));
+    inv.commInstallments.push({id:nextId(),date:date,amount:amt,note:''});
+    inv.commPaid=rnd(inv.commInstallments.reduce(function(s,i){return s+i.amount;},0));
+    save();render();openModal(invId);
+    toast('✓ Commission ₨'+fmt(amt)+' recorded.');
+  }catch(e){toast('⚠ '+e.message);console.error(e);}
+}
+
+// DELETE INSTALLMENTS
+function delProfitInst(invId,instId){
+  var inv=D.find(function(i){return i.id===invId;});if(!inv)return;
+  var inst=inv.profitInstallments.find(function(i){return i.id===instId;});if(!inst)return;
+  if(!confirm('Delete profit payment of ₨'+fmt(inst.amount)+'?'))return;
+  inv.profitInstallments=inv.profitInstallments.filter(function(i){return i.id!==instId;});
+  inv.profitPaid=rnd(inv.profitInstallments.reduce(function(s,i){return s+i.amount;},0));
+  save();render();openModal(invId);
+}
+function delCommInst(invId,instId){
+  var inv=D.find(function(i){return i.id===invId;});if(!inv)return;
+  var inst=inv.commInstallments.find(function(i){return i.id===instId;});if(!inst)return;
+  if(!confirm('Delete commission payment of ₨'+fmt(inst.amount)+'?'))return;
+  inv.commInstallments=inv.commInstallments.filter(function(i){return i.id!==instId;});
+  inv.commPaid=rnd(inv.commInstallments.reduce(function(s,i){return s+i.amount;},0));
+  save();render();openModal(invId);
+}
+
+// ROLL CYCLE
+function rollCycle(id){
+  var inv=D.find(function(i){return i.id===id;});if(!inv)return;
+  if(profitRem(inv)>0){if(!confirm('Investor profit is not fully paid yet.\n\nRoll to next cycle anyway?'))return;}
+  var lastPayDate=null;
+  if(inv.profitInstallments.length){
+    var dates=inv.profitInstallments.map(function(i){return i.date;}).filter(Boolean).sort();
+    lastPayDate=dates[dates.length-1];
+  }
+  var newStart=lastPayDate||tod();
+  if(newStart<inv.dueDate){newStart=addDays(inv.dueDate,1);}
+  inv.history.push({cycle:inv.cycle,startDate:inv.startDate,dueDate:inv.dueDate,profit:inv.profit,commission:inv.commission,profitPaid:inv.profitPaid,commPaid:inv.commPaid,profitInstallments:inv.profitInstallments.slice(),commInstallments:inv.commInstallments.slice(),rolledDate:tod()});
+  inv.startDate=newStart;
+  inv.dueDate=addDays(newStart,40);
+  inv.profit=rnd(inv.amount*inv.ipct/100);inv.commission=rnd(inv.amount*inv.wpct/100);
+  inv.profitPaid=0;inv.commPaid=0;inv.profitInstallments=[];inv.commInstallments=[];inv.cycle++;
+  save();render();closeModal();
+  toast('✓ Rolled to Cycle '+inv.cycle+' — Started: '+newStart+' · Due: '+inv.dueDate);
+}
+
+// DELETE RECORD
+function delRec(id){
+  if(!confirm('Permanently delete this investment record?'))return;
+  var before=D.length;
+  D=D.filter(function(i){return i.id!==id;});
+  if(D.length===before){return toast('⚠ Record not found.');}
+  save();render();
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('editOverlay').classList.remove('open');
+  activeId=null;
+  toast('✓ Investment record deleted.');
+}
+
+// WAJ BULK PAYMENT
+function calcAlloc(total){
+  var pending=D.filter(function(inv){return commRem(inv)>0;}).map(function(inv){return{id:inv.id,name:inv.name,rem:commRem(inv)};}).sort(function(a,b){return a.rem-b.rem;});
+  var allocs=[],left=total;
+  for(var i=0;i<pending.length;i++){
+    if(left<=0.005)break;
+    var pay=rnd(Math.min(left,pending[i].rem));
+    allocs.push({id:pending[i].id,name:pending[i].name,rem:pending[i].rem,pay:pay,full:pay>=pending[i].rem-0.005});
+    left=rnd(left-pay);
+  }
+  return{allocs:allocs,unused:rnd(left)};
+}
+
+function openWajModal(){
+  var totalRem=D.reduce(function(s,i){return s+commRem(i);},0);
+  var totalAll=D.reduce(function(s,i){return s+i.commission+i.history.reduce(function(h,r){return h+r.commission;},0);},0);
+  var totalPaid=D.reduce(function(s,i){return s+i.commPaid+i.history.reduce(function(h,r){return h+r.commPaid;},0);},0);
+  var hasPending=D.some(function(i){return commRem(i)>0;});
+  var bdRows=D.filter(function(i){return i.commission>0||commRem(i)>0;}).map(function(inv){
+    return'<div class="comm-bd-row"><div><div class="comm-bd-name">'+esc(inv.name)+'</div><div style="font-size:11px;color:var(--muted)">Cycle '+inv.cycle+' · Due '+inv.dueDate+'</div></div><div class="comm-bd-right"><div class="comm-bd-total">₨ '+fmt(inv.commission)+'</div><div class="comm-bd-detail">Paid ₨'+fmt(inv.commPaid)+' · Rem ₨'+fmt(commRem(inv))+'</div></div></div>';
+  }).join('');
+  document.getElementById('wajBody').innerHTML=
+    '<div style="padding:4px 0 4px">'+
+    '<div class="inst-summary" style="margin-bottom:16px">'+
+    '<div class="inst-s-card"><span class="inst-s-lbl">Total Commission</span><div class="inst-s-val cy">₨ '+fmt(totalAll)+'</div></div>'+
+    '<div class="inst-s-card"><span class="inst-s-lbl">Already Paid</span><div class="inst-s-val g">₨ '+fmt(totalPaid)+'</div></div>'+
+    '<div class="inst-s-card"><span class="inst-s-lbl">Remaining</span><div class="inst-s-val a">₨ '+fmt(totalRem)+'</div></div>'+
+    '</div>'+
+    '<div class="waj-form-block">'+
+    '<div class="waj-form-title">💸 Enter Payment Details</div>'+
+    '<div class="waj-form-row">'+
+    '<div class="fg"><label>Payment Amount (₨)</label><input type="number" id="wAmt" placeholder="e.g. 20000" min="1" oninput="previewAlloc()"></div>'+
+    '<div class="fg"><label>Payment Date</label><input type="date" id="wDate" value="'+tod()+'"></div>'+
+    '</div>'+
+    '<div class="waj-form-row1"><div class="fg"><label>Note (optional)</label><input type="text" id="wNote" placeholder="e.g. Bank transfer #1234"></div></div>'+
+    '</div>'+
+    '<div class="alloc-box" id="allocBox"><div class="alloc-box-title">Allocation Preview — Smallest First</div><div class="alloc-empty">Enter amount above to see allocation</div></div>'+
+    (hasPending?'<div class="comm-breakdown"><div class="comm-bd-title">Commission Breakdown by Investor</div>'+bdRows+'</div>':'<div style="text-align:center;font-size:13px;color:var(--green);padding:12px 0;font-weight:600">✓ All commissions fully paid</div>')+
+    '</div>';
+  document.getElementById('wajFtr').innerHTML='<button class="btn btn-ghost btn-md" onclick="closeWajModal()">Cancel</button><button class="btn btn-purple btn-md" onclick="execBulkPay()">✓ Confirm &amp; Apply</button>';
+  document.getElementById('wajOverlay').classList.add('open');
+}
+
+function previewAlloc(){
+  var amt=parseFloat(document.getElementById('wAmt').value)||0;
+  var box=document.getElementById('allocBox');if(!box)return;
+  if(amt<=0){box.innerHTML='<div class="alloc-box-title">Allocation Preview — Smallest First</div><div class="alloc-empty">Enter amount above to see allocation</div>';return;}
+  var res=calcAlloc(amt);
+  if(!res.allocs.length){box.innerHTML='<div class="alloc-box-title">Allocation Preview</div><div class="alloc-empty" style="color:#e8a24a">No pending commission</div>';return;}
+  var rows=res.allocs.map(function(a){return'<div class="alloc-row"><span class="alloc-name">'+esc(a.name)+'</span><span class="alloc-rem">Rem ₨'+fmt(a.rem)+'</span><span class="alloc-pay">→ ₨'+fmt(a.pay)+'</span><span class="alloc-tag '+(a.full?'full':'part')+'">'+(a.full?'✓ Cleared':'Partial')+'</span></div>';}).join('');
+  box.innerHTML='<div class="alloc-box-title">Allocation Preview — Smallest First</div>'+rows+(res.unused>0?'<div class="alloc-unused">⚠ ₨'+fmt(res.unused)+' will not be applied (no more pending)</div>':'');
+}
+
+function execBulkPay(){
+  try{
+    var amtRaw=document.getElementById('wAmt').value.trim(),date=document.getElementById('wDate').value||tod(),note=document.getElementById('wNote').value.trim();
+    if(!amtRaw)return toast('⚠ Enter a payment amount.');
+    var amt=parseFloat(amtRaw);if(isNaN(amt)||amt<=0)return toast('⚠ Enter a valid amount > 0.');
+    if(D.reduce(function(s,i){return s+commRem(i);},0)<=0)return toast('⚠ No pending commission.');
+    var res=calcAlloc(amt);if(!res.allocs.length)return toast('⚠ No pending commission found.');
+    res.allocs.forEach(function(a){
+      var inv=D.find(function(i){return i.id===a.id;});if(!inv||a.pay<=0)return;
+      inv.commInstallments.push({id:nextId(),date:date,amount:a.pay,note:note||('Bulk ₨'+fmt(amt))});
+      inv.commPaid=rnd(inv.commInstallments.reduce(function(s,i){return s+i.amount;},0));
+    });
+    wajHistory.push({id:nextId(),date:date,amount:amt,note:note||('Bulk distribution'),type:'paid',breakdown:res.allocs.map(function(a){return a.name+' ₨'+fmt(a.pay);}).join(', ')});
+    save();render();closeWajModal();
+    var summary=res.allocs.map(function(a){return a.name+' ₨'+fmt(a.pay);}).join(', ');
+    toast('✓ Distributed: '+summary+(res.unused>0?' · ₨'+fmt(res.unused)+' unused':''));
+  }catch(e){toast('⚠ '+e.message);console.error(e);}
+}
+
+function closeWajModal(){document.getElementById('wajOverlay').classList.remove('open');}
+function wajBgClick(e){if(e.target===document.getElementById('wajOverlay'))closeWajModal();}
+
+// WAJ HISTORY MODAL
+function openWajHistModal(){renderWajHistBody();document.getElementById('wajHistOverlay').classList.add('open');}
+function closeWajHistModal(){document.getElementById('wajHistOverlay').classList.remove('open');}
+function wajHistBgClick(e){if(e.target===document.getElementById('wajHistOverlay'))closeWajHistModal();}
+
+function renderWajHistBody(){
+  var totalPaid=wajHistory.filter(function(h){return h.type==='paid';}).reduce(function(s,h){return s+h.amount;},0);
+  var totalPocket=wajHistory.filter(function(h){return h.type==='pocket';}).reduce(function(s,h){return s+h.amount;},0);
+  var sorted=wajHistory.slice().sort(function(a,b){return b.date.localeCompare(a.date);});
+  var rows=sorted.length?sorted.map(function(h){
+    var isPocket=h.type==='pocket';
+    return'<div class="waj-hist-item'+(isPocket?' pocket':'')+'">'+
+      '<span class="whi-date">'+fmtD(h.date)+'</span>'+
+      '<div class="whi-desc">'+esc(h.note||(isPocket?'Pocket advance':'Commission payment'))+(h.breakdown?'<br><span style="font-size:10px;color:var(--muted)">'+esc(h.breakdown)+'</span>':'')+(h.investorName?'<br><span style="font-size:10px;color:var(--muted)">Investor: '+esc(h.investorName)+'</span>':'')+'</div>'+
+      '<span class="whi-amt'+(isPocket?' teal':'')+'">₨ '+fmt(h.amount)+'</span>'+
+      '<span class="whi-tag'+(isPocket?' pocket':' paid')+'">'+(isPocket?'Pocket':'Paid to Waj')+'</span>'+
+      '</div>';
+  }).join(''):'<div class="waj-no-hist" style="color:var(--muted);padding:20px 0">No payment history yet.</div>';
+  document.getElementById('wajHistBody').innerHTML=
+    '<div style="padding:14px 22px 4px">'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">'+
+    '<div class="inst-s-card"><span class="inst-s-lbl">Business Paid Wajahat</span><div class="inst-s-val g">₨ '+fmt(totalPaid)+'</div></div>'+
+    '<div class="inst-s-card"><span class="inst-s-lbl">Wajahat Pocket Advances</span><div class="inst-s-val" style="color:var(--teal)">₨ '+fmt(totalPocket)+'</div></div>'+
+    '</div>'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'+
+    '<div style="font-family:\'DM Mono\',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)">Payment Log</div>'+
+    '<button class="btn btn-teal btn-sm" onclick="openPocketModal()">👛 Record Pocket Payment</button>'+
+    '</div>'+
+    '<div>'+rows+'</div>'+
+    '</div>';
+}
+
+// POCKET PAYMENT MODAL
+function openPocketModal(prefillInvId){
+  var invOptions=D.map(function(inv){return'<option value="'+inv.id+'"'+(prefillInvId===inv.id?' selected':'')+'>'+esc(inv.name)+' (Rem ₨'+fmt(commRem(inv))+')</option>';}).join('');
+  document.getElementById('pocketBody').innerHTML=
+    '<div style="padding:4px 0 8px">'+
+    '<div class="pocket-banner">'+
+    '<div class="pocket-banner-title">📌 About Pocket Payments</div>'+
+    '<div style="font-size:12px;color:var(--purple);line-height:1.6;margin-top:4px">'+
+    'Use this when Wajahat pays an investor\'s commission from his own pocket before receiving it from the business. '+
+    'This records the advance so it can be tracked and adjusted later when the business reimburses Wajahat.'+
+    '</div>'+
+    '</div>'+
+    '<div class="waj-form-block">'+
+    '<div class="waj-form-title">👛 Record Pocket Payment</div>'+
+    '<div class="waj-form-row">'+
+    '<div class="fg"><label>Payment Amount (₨)</label><input type="number" id="pkAmt" placeholder="e.g. 15000" min="1"></div>'+
+    '<div class="fg"><label>Payment Date</label><input type="date" id="pkDate" value="'+tod()+'"></div>'+
+    '</div>'+
+    '<div class="waj-form-row1"><div class="fg"><label>Investor (optional — which investor was paid)</label>'+
+    '<select id="pkInv"><option value="">— General / Not investor-specific —</option>'+invOptions+'</select></div></div>'+
+    '<div class="waj-form-row1"><div class="fg"><label>Note</label><input type="text" id="pkNote" placeholder="e.g. Paid cash to Adnan from personal funds"></div></div>'+
+    '</div>'+
+    '</div>';
+  document.getElementById('pocketFtr').innerHTML=
+    '<button class="btn btn-ghost btn-md" onclick="closePocketModal()">Cancel</button>'+
+    '<button class="btn btn-teal btn-md" onclick="execPocketPay()">✓ Record Pocket Payment</button>';
+  document.getElementById('pocketOverlay').classList.add('open');
+}
+
+function execPocketPay(){
+  try{
+    var amtRaw=document.getElementById('pkAmt').value.trim();
+    var date=document.getElementById('pkDate').value||tod();
+    var note=document.getElementById('pkNote').value.trim();
+    var invId=document.getElementById('pkInv').value;
+    if(!amtRaw)return toast('⚠ Enter a payment amount.');
+    var amt=parseFloat(amtRaw);
+    if(isNaN(amt)||amt<=0)return toast('⚠ Enter a valid amount > 0.');
+    var invName='';
+    if(invId){
+      var inv=D.find(function(i){return i.id===parseInt(invId);});
+      if(inv){
+        invName=inv.name;
+        var rem=commRem(inv);
+        var payAmt=Math.min(amt,rem);
+        if(payAmt>0){
+          inv.commInstallments.push({id:nextId(),date:date,amount:payAmt,note:'[Pocket by Wajahat] '+(note||'')});
+          inv.commPaid=rnd(inv.commInstallments.reduce(function(s,i){return s+i.amount;},0));
+        }
+      }
+    }
+    wajHistory.push({id:nextId(),date:date,amount:amt,note:note||'Pocket advance',type:'pocket',investorId:invId?parseInt(invId):null,investorName:invName||null});
+    save();render();closePocketModal();
+    if(document.getElementById('wajHistOverlay').classList.contains('open'))renderWajHistBody();
+    toast('✓ Pocket payment ₨'+fmt(amt)+' recorded'+(invName?' for '+invName:'')+'.');
+  }catch(e){toast('⚠ '+e.message);console.error(e);}
+}
+
+function closePocketModal(){document.getElementById('pocketOverlay').classList.remove('open');}
+function pocketBgClick(e){if(e.target===document.getElementById('pocketOverlay'))closePocketModal();}
+
+// INVESTOR PAYMENT HISTORY MODAL
+var histTabMode='all';
+var histInvId=null;
+
+function openPayHistModal(id){
+  var inv=D.find(function(i){return i.id===id;});
+  if(!inv)return toast('⚠ Investor not found.');
+  histInvId=id;histTabMode='all';
+  set('payHistTitle','📋 '+inv.name+' — Payment History');
+  document.querySelectorAll('#histTabs .hist-tab').forEach(function(t){t.classList.remove('on');});
+  document.querySelectorAll('#histTabs .hist-tab')[0].classList.add('on');
+  renderPayHistBody(id,histTabMode);
+  document.getElementById('payHistOverlay').classList.add('open');
+}
+
+function closePayHistModal(){document.getElementById('payHistOverlay').classList.remove('open');histInvId=null;}
+function payHistBgClick(e){if(e.target===document.getElementById('payHistOverlay'))closePayHistModal();}
+
+function switchHistTab(mode,el){
+  histTabMode=mode;
+  document.querySelectorAll('#histTabs .hist-tab').forEach(function(t){t.classList.remove('on');});
+  el.classList.add('on');
+  if(histInvId)renderPayHistBody(histInvId,mode);
+}
+
+function renderPayHistBody(id,mode){
+  var inv=D.find(function(i){return i.id===id;});
+  if(!inv)return;
+  var body=document.getElementById('payHistBody');
+  if(mode==='cycles'){
+    if(!inv.history.length){body.innerHTML='<div class="ph-empty">No completed cycles yet.</div>';return;}
+    var html='<div style="padding:14px 22px">';
+    inv.history.forEach(function(h){
+      html+='<div style="background:var(--surface);border-radius:var(--rm);padding:14px;margin-bottom:12px">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'+
+        '<div style="font-family:\'DM Mono\',monospace;font-size:10px;font-weight:700;color:var(--gold-dk)">Cycle '+h.cycle+'</div>'+
+        '<div style="font-size:10px;color:var(--muted)">Rolled on '+fmtD(h.rolledDate)+'</div>'+
+        '</div>'+
+        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px">'+
+        '<div class="inst-s-card"><span class="inst-s-lbl">Period</span><div style="font-size:11px;font-weight:600">'+fmtD(h.startDate)+'<br>to '+fmtD(h.dueDate)+'</div></div>'+
+        '<div class="inst-s-card"><span class="inst-s-lbl">Profit</span><div class="inst-s-val g">₨ '+fmt(h.profitPaid)+'<span style="font-size:10px;color:var(--muted)">/'+fmt(h.profit)+'</span></div></div>'+
+        '<div class="inst-s-card"><span class="inst-s-lbl">Commission</span><div class="inst-s-val a">₨ '+fmt(h.commPaid)+'<span style="font-size:10px;color:var(--muted)">/'+fmt(h.commission)+'</span></div></div>'+
+        '</div>';
+      html+='</div>';
+    });
+    html+='</div>';body.innerHTML=html;return;
+  }
+  var allPayments=[];
+  inv.history.forEach(function(h){
+    if(h.profitInstallments){h.profitInstallments.forEach(function(i){allPayments.push({type:'profit',cycleNum:h.cycle,date:i.date,amount:i.amount,note:i.note,lateDays:i.lateDays});});}
+    if(h.commInstallments){h.commInstallments.forEach(function(i){allPayments.push({type:'comm',cycleNum:h.cycle,date:i.date,amount:i.amount,note:i.note});});}
+  });
+  inv.profitInstallments.forEach(function(i){allPayments.push({type:'profit',cycleNum:inv.cycle,date:i.date,amount:i.amount,note:i.note,lateDays:i.lateDays});});
+  inv.commInstallments.forEach(function(i){allPayments.push({type:'comm',cycleNum:inv.cycle,date:i.date,amount:i.amount,note:i.note});});
+  if(mode==='profit')allPayments=allPayments.filter(function(p){return p.type==='profit';});
+  if(mode==='comm')allPayments=allPayments.filter(function(p){return p.type==='comm';});
+  allPayments.sort(function(a,b){return b.date.localeCompare(a.date);});
+  if(!allPayments.length){body.innerHTML='<div class="ph-empty">No payments found.</div>';return;}
+  var totProfit=allPayments.filter(function(p){return p.type==='profit';}).reduce(function(s,p){return s+p.amount;},0);
+  var totComm=allPayments.filter(function(p){return p.type==='comm';}).reduce(function(s,p){return s+p.amount;},0);
+  var html='<div style="padding:14px 22px">';
+  if(mode==='all'||mode==='profit')html+='<div class="ph-summary-row profit"><span>Total Profit Paid (all cycles)</span><strong>₨ '+fmt(totProfit)+'</strong></div>';
+  if(mode==='all'||mode==='comm')html+='<div class="ph-summary-row comm"><span>Total Commission Paid (all cycles)</span><strong>₨ '+fmt(totComm)+'</strong></div>';
+  html+='<div style="margin-top:12px">';
+  allPayments.forEach(function(p){
+    var isPocket=p.note&&p.note.indexOf('[Pocket by Wajahat]')===0;
+    var entryClass=isPocket?'pocket-entry':(p.type==='profit'?'profit-entry':'comm-entry');
+    var tagClass=isPocket?'pocket':(p.type==='profit'?'profit':'comm');
+    var tagLabel=isPocket?'Pocket':(p.type==='profit'?'Profit':'Comm');
+    var amtClass=isPocket?'purple':(p.type==='profit'?'green':'amber');
+    html+='<div class="ph-entry '+entryClass+'">'+
+      '<span class="ph-date">'+fmtD(p.date)+'</span>'+
+      '<span class="ph-desc"><span style="font-size:10px;color:var(--muted)">C'+p.cycleNum+'</span> '+esc(p.note||'Payment')+(p.lateDays>0?' <span style="color:var(--rust);font-size:10px">('+p.lateDays+'d late)</span>':'')+'</span>'+
+      '<span class="ph-amt '+amtClass+'">₨ '+fmt(p.amount)+'</span>'+
+      '<span class="ph-tag '+tagClass+'">'+tagLabel+'</span>'+
+      '</div>';
+  });
+  html+='</div></div>';body.innerHTML=html;
+}
+
+// OPEN INVESTOR MODAL
+function openModal(id){
+  try{
+    var inv=D.find(function(i){return i.id===id;});if(!inv)return;
+    activeId=id;
+    var od=overdueDays(inv),pr=profitRem(inv),cr=commRem(inv),pp=profitPct(inv);
+    set('mTitle',inv.name+' — Cycle '+inv.cycle);
+    function piLog(){
+      if(!inv.profitInstallments.length)return'<div class="no-inst">No payments recorded yet</div>';
+      return inv.profitInstallments.map(function(i){
+        var isPocket=i.note&&i.note.indexOf('[Pocket by Wajahat]')===0;
+        var lateTag=i.lateDays>0?(' <span style="color:var(--rust);font-size:10px;font-weight:600">('+i.lateDays+'d late)</span>'):'';
+        var pocketTag=isPocket?'<span class="ii-pocket">Pocket</span>':'';
+        return'<div class="inst-item" id="pi_row_'+i.id+'">'+
+          '<span class="ii-date">'+i.date+'</span>'+
+          '<span class="ii-note">'+esc(i.note||'—')+'</span>'+
+          '<span class="ii-amt">₨ '+fmt(i.amount)+lateTag+'</span>'+
+          pocketTag+
+          '<button class="ii-edit" onclick="toggleInstEdit('+inv.id+','+i.id+',\'profit\')">✏</button>'+
+          '<button class="ii-del" onclick="delProfitInst('+inv.id+','+i.id+')">✕</button>'+
+          '</div>'+
+          '<div class="inst-item-edit" id="pi_edit_'+i.id+'">'+
+          '<div class="fg"><label>Amount (₨)</label><input type="number" id="pi_ea_'+i.id+'" value="'+i.amount+'" step="any" min="0.01"></div>'+
+          '<div class="fg"><label>Date</label><input type="date" id="pi_ed_'+i.id+'" value="'+i.date+'"></div>'+
+          '<div class="fg"><label>Note</label><input type="text" id="pi_en_'+i.id+'" value="'+esc(i.note||'')+'"></div>'+
+          '<button class="ii-save" onclick="saveInstEdit('+inv.id+','+i.id+',\'profit\')">✓</button>'+
+          '<button class="ii-cancel-edit" onclick="cancelInstEdit('+i.id+',\'profit\')">✕</button>'+
+          '</div>';
+      }).join('');
+    }
+    function ciLog(){
+      if(!inv.commInstallments.length)return'<div class="no-inst">No payments recorded yet</div>';
+      return inv.commInstallments.map(function(i){
+        var isPocket=i.note&&i.note.indexOf('[Pocket by Wajahat]')===0;
+        var pocketTag=isPocket?'<span class="ii-pocket">Pocket</span>':'';
+        return'<div class="inst-item" id="ci_row_'+i.id+'">'+
+          '<span class="ii-date">'+i.date+'</span>'+
+          '<span class="ii-note">'+esc(i.note||'—')+'</span>'+
+          '<span class="ii-amt">₨ '+fmt(i.amount)+'</span>'+
+          pocketTag+
+          '<button class="ii-edit" onclick="toggleInstEdit('+inv.id+','+i.id+',\'comm\')">✏</button>'+
+          '<button class="ii-del" onclick="delCommInst('+inv.id+','+i.id+')">✕</button>'+
+          '</div>'+
+          '<div class="inst-item-edit" id="ci_edit_'+i.id+'">'+
+          '<div class="fg"><label>Amount (₨)</label><input type="number" id="ci_ea_'+i.id+'" value="'+i.amount+'" step="any" min="0.01"></div>'+
+          '<div class="fg"><label>Date</label><input type="date" id="ci_ed_'+i.id+'" value="'+i.date+'"></div>'+
+          '<div class="fg"><label>Note</label><input type="text" id="ci_en_'+i.id+'" value="'+esc(i.note||'')+'"></div>'+
+          '<button class="ii-save" onclick="saveInstEdit('+inv.id+','+i.id+',\'comm\')">✓</button>'+
+          '<button class="ii-cancel-edit" onclick="cancelInstEdit('+i.id+',\'comm\')">✕</button>'+
+          '</div>';
+      }).join('');
+    }
+    var histHTML='';
+    if(inv.history.length){
+      histHTML='<div class="hist-lbl">Completed Cycles History</div>'+inv.history.map(function(h){return'<div class="m-row"><span class="m-lbl">Cycle '+h.cycle+' · Rolled '+h.rolledDate+'</span><span class="m-val" style="font-size:12px">Profit <span class="cg">₨'+fmt(h.profitPaid)+'</span>/<span class="cm">₨'+fmt(h.profit)+'</span> · Comm <span class="ca">₨'+fmt(h.commPaid)+'</span>/<span class="cm">₨'+fmt(h.commission)+'</span></span></div>';}).join('');
+    }
+    var odNotice=od>0?'<div style="background:var(--rust-lt);border:1px solid #f0b8b8;border-radius:var(--r);padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px"><span style="font-size:22px">⏰</span><div><div style="font-weight:700;color:var(--rust);font-size:13px">'+od+' Days Overdue</div><div style="font-size:11px;color:var(--rust)">Due date was '+inv.dueDate+'</div></div></div>':'';
+    var profitForm=
+      '<div class="inst-form">'+
+      '<div class="inst-form-title">Record Profit Payment</div>'+
+      (pr<=0?'<div style="background:var(--green-lt);border:1px solid #a8d8bc;border-radius:var(--r);padding:7px 12px;margin-bottom:10px;font-size:12px;color:var(--green);font-weight:600">✓ Profit fully paid</div>':'')+
+      (od>0?'<div class="adj-notice">⚠ '+od+' days overdue. You can enter an adjusted profit total if the rate was renegotiated.</div>':'')+
+      '<div class="inst-form-row">'+
+      '<div class="fg"><label>Payment Amount (₨)</label><input type="number" id="pi_amt_'+inv.id+'" placeholder="Amount being paid now" min="0.01" step="any"></div>'+
+      '<div class="fg"><label>Actual Payment Date</label><input type="date" id="pi_date_'+inv.id+'" value="'+tod()+'"></div>'+
+      '</div>'+
+      '<div class="inst-form-row">'+
+      '<div class="fg"><label>Adjusted Total Profit (₨) <span style="font-weight:normal;color:var(--amber)">— enter new total if rate changed</span></label><input type="number" id="pi_adj_'+inv.id+'" placeholder="Leave blank to keep ₨'+fmt(inv.profit)+'" min="0" step="any" oninput="liveUpdateRem('+inv.id+')"></div>'+
+      '<div class="fg"><label>&nbsp;</label><div class="rem-info" id="rem_info_'+inv.id+'"><strong>Rate:</strong> '+inv.ipct+'%<br><strong>Total:</strong> ₨'+fmt(inv.profit)+'<br><strong>Remaining:</strong> <span id="rem_live_'+inv.id+'">₨'+fmt(pr)+'</span></div></div>'+
+      '</div>'+
+      '<div class="inst-form-actions"><button class="btn btn-green btn-sm" onclick="addProfitInst('+inv.id+')">✓ Record Payment</button></div>'+
+      '</div>';
+    var commForm=
+      '<div class="inst-form">'+
+      '<div class="inst-form-title">Record Commission Payment</div>'+
+      (cr<=0?'<div style="background:var(--green-lt);border:1px solid #a8d8bc;border-radius:var(--r);padding:7px 12px;margin-bottom:10px;font-size:12px;color:var(--green);font-weight:600">✓ Commission fully paid</div>':'')+
+      '<div class="inst-form-row">'+
+      '<div class="fg"><label>Payment Amount (₨)</label><input type="number" id="ci_amt_'+inv.id+'" placeholder="Amount being paid now" min="0.01" step="any"></div>'+
+      '<div class="fg"><label>Payment Date</label><input type="date" id="ci_date_'+inv.id+'" value="'+tod()+'"></div>'+
+      '</div>'+
+      '<div style="background:var(--amber-lt);border-radius:var(--r);padding:8px 12px;font-size:12px;color:var(--gold-dk);margin-bottom:10px"><strong>Rate:</strong> '+inv.wpct+'% &nbsp;·&nbsp; <strong>Total:</strong> ₨'+fmt(inv.commission)+' &nbsp;·&nbsp; <strong>Remaining:</strong> ₨'+fmt(cr)+'</div>'+
+      '<div class="inst-form-actions" style="justify-content:space-between">'+
+      '<button class="btn btn-teal btn-sm" onclick="openPocketModal('+inv.id+')">👛 Pocket Pay</button>'+
+      '<button class="btn btn-amber btn-sm" onclick="addCommInst('+inv.id+')">✓ Record Commission</button>'+
+      '</div>'+
+      '</div>';
+    document.getElementById('mBody').innerHTML=
+      odNotice+
+      '<div class="m-row"><span class="m-lbl">Amount</span><span class="m-val cg">₨ '+fmt(inv.amount)+'</span></div>'+
+      '<div class="m-row"><span class="m-lbl">Start Date</span><span class="m-val mn">'+inv.startDate+'</span></div>'+
+      '<div class="m-row"><span class="m-lbl">Due Date (40 days)</span><span class="m-val mn" style="color:'+(od>0?'var(--rust)':'inherit')+'">'+inv.dueDate+(od>0?' <span class="overdue-pill">'+od+'d overdue</span>':'')+'</span></div>'+
+      '<div class="m-row"><span class="m-lbl">Cycle</span><span class="m-val">C'+inv.cycle+'</span></div>'+
+      '<div class="m-row"><span class="m-lbl">Status</span><span class="m-val">'+bdg(inv)+'</span></div>'+
+      '<div class="inst-section">'+
+      '<div class="inst-head"><span>💰 Investor Profit — '+inv.ipct+'%</span><span style="color:var(--green)">₨ '+fmt(inv.profit)+' total</span></div>'+
+      '<div class="inst-summary">'+
+      '<div class="inst-s-card"><span class="inst-s-lbl">Total</span><div class="inst-s-val cy">₨ '+fmt(inv.profit)+'</div></div>'+
+      '<div class="inst-s-card"><span class="inst-s-lbl">Paid</span><div class="inst-s-val g">₨ '+fmt(inv.profitPaid)+'</div></div>'+
+      '<div class="inst-s-card"><span class="inst-s-lbl">Remaining</span><div class="inst-s-val '+(pr>0?'a':'g')+'">₨ '+fmt(pr)+'</div></div>'+
+      '</div>'+profitForm+
+      '<div class="inst-log">'+piLog()+'</div>'+
+      '</div>'+
+      '<div class="inst-section">'+
+      '<div class="inst-head"><span>🤝 Wajahat Commission — '+inv.wpct+'%</span><span style="color:var(--amber)">₨ '+fmt(inv.commission)+' total</span></div>'+
+      '<div class="inst-summary">'+
+      '<div class="inst-s-card"><span class="inst-s-lbl">Total</span><div class="inst-s-val cy">₨ '+fmt(inv.commission)+'</div></div>'+
+      '<div class="inst-s-card"><span class="inst-s-lbl">Paid</span><div class="inst-s-val g">₨ '+fmt(inv.commPaid)+'</div></div>'+
+      '<div class="inst-s-card"><span class="inst-s-lbl">Remaining</span><div class="inst-s-val '+(cr>0?'a':'g')+'">₨ '+fmt(cr)+'</div></div>'+
+      '</div>'+commForm+
+      '<div class="inst-log">'+ciLog()+'</div>'+
+      '</div>'+histHTML;
+    document.getElementById('mFtr').innerHTML=
+      '<button class="btn btn-ghost btn-md" onclick="closeModal()">Close</button>'+
+      '<button class="btn btn-teal btn-sm" onclick="openPayHistModal('+inv.id+')">📋 Full History</button>'+
+      '<button class="btn btn-red btn-sm" onclick="delRec('+inv.id+')">Delete</button>'+
+      '<button class="btn btn-green btn-md" onclick="rollCycle('+inv.id+')">↻ Roll Cycle</button>';
+    document.getElementById('overlay').classList.add('open');
+  }catch(e){toast('⚠ Error: '+e.message);console.error(e);}
+}
+
+function liveUpdateRem(invId){
+  var inv=D.find(function(i){return i.id===invId;});if(!inv)return;
+  var adjEl=document.getElementById('pi_adj_'+invId);
+  var liveEl=document.getElementById('rem_live_'+invId);
+  if(!adjEl||!liveEl)return;
+  var adjVal=adjEl.value.trim();
+  var newTotal=adjVal!==''?parseFloat(adjVal):inv.profit;
+  if(isNaN(newTotal)||newTotal<0)newTotal=inv.profit;
+  var newRem=Math.max(0,rnd(newTotal-inv.profitPaid));
+  liveEl.textContent='₨'+fmt(newRem)+(adjVal!==''?' (adjusted)':'');
+  liveEl.style.color=newRem>0?'var(--amber)':'var(--green)';
+}
+
+function toggleInstEdit(invId,instId,type){
+  var prefix=type==='profit'?'pi':'ci';
+  var editDiv=document.getElementById(prefix+'_edit_'+instId);
+  if(!editDiv)return;
+  var isOpen=editDiv.classList.contains('show');
+  document.querySelectorAll('.inst-item-edit.show').forEach(function(el){el.classList.remove('show');});
+  if(!isOpen)editDiv.classList.add('show');
+}
+function cancelInstEdit(instId,type){
+  var prefix=type==='profit'?'pi':'ci';
+  var editDiv=document.getElementById(prefix+'_edit_'+instId);
+  if(editDiv)editDiv.classList.remove('show');
+}
+
+function saveInstEdit(invId,instId,type){
+  try{
+    var inv=D.find(function(i){return i.id===invId;});
+    if(!inv)return toast('⚠ Investment not found.');
+    var prefix=type==='profit'?'pi':'ci';
+    var amtEl=document.getElementById(prefix+'_ea_'+instId);
+    var dateEl=document.getElementById(prefix+'_ed_'+instId);
+    var noteEl=document.getElementById(prefix+'_en_'+instId);
+    if(!amtEl||!dateEl)return toast('⚠ Edit fields not found.');
+    var newAmt=parseFloat(amtEl.value);
+    var newDate=dateEl.value||tod();
+    var newNote=noteEl?noteEl.value.trim():'';
+    if(isNaN(newAmt)||newAmt<=0)return toast('⚠ Enter a valid amount.');
+    var list=type==='profit'?inv.profitInstallments:inv.commInstallments;
+    var inst=list.find(function(i){return i.id===instId;});
+    if(!inst)return toast('⚠ Installment not found.');
+    inst.amount=rnd(newAmt);inst.date=newDate;inst.note=newNote;
+    if(type==='profit'){
+      inst.lateDays=Math.max(0,daysBetween(inv.dueDate,newDate));
+      if(inst.lateDays>0)inst.note=inst.note||('Paid '+inst.lateDays+'d late');
+      inv.profitPaid=rnd(inv.profitInstallments.reduce(function(s,i){return s+i.amount;},0));
+    }else{
+      inv.commPaid=rnd(inv.commInstallments.reduce(function(s,i){return s+i.amount;},0));
+    }
+    save();render();openModal(invId);
+    toast('✓ Payment updated successfully.');
+  }catch(e){toast('⚠ '+e.message);console.error(e);}
+}
+
+function openEditModal(id){
+  try{
+    var inv=D.find(function(i){return i.id===id;});
+    if(!inv)return toast('⚠ Investment not found.');
+    activeId=id;
+    var el=document.getElementById('editTitle');
+    if(el)el.textContent='Edit — '+inv.name;
+    document.getElementById('editBody').innerHTML=
+      '<div class="edit-section">'+
+        '<div class="edit-section-title">&#128100; Investor Details</div>'+
+        '<div class="edit-grid2">'+
+          '<div class="fg"><label>Investor Name</label><input type="text" id="ei_name" value="'+esc(inv.name)+'"></div>'+
+          '<div class="fg"><label>Investment Amount (₨)</label><input type="number" id="ei_amt" value="'+inv.amount+'" min="1" step="any"></div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="edit-section">'+
+        '<div class="edit-section-title">&#128197; Cycle Dates</div>'+
+        '<div class="edit-grid2">'+
+          '<div class="fg"><label>Start Date</label><input type="date" id="ei_start" value="'+inv.startDate+'"></div>'+
+          '<div class="fg"><label>Due Date</label><input type="date" id="ei_due" value="'+inv.dueDate+'"></div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="edit-section">'+
+        '<div class="edit-section-title">&#9995; Profit &amp; Commission Rates</div>'+
+        '<div class="edit-grid2">'+
+          '<div class="fg"><label>Investor Profit %</label><input type="number" id="ei_ipct" value="'+inv.ipct+'" min="0" max="500" step="0.5"></div>'+
+          '<div class="fg"><label>Wajahat Commission %</label><input type="number" id="ei_wpct" value="'+inv.wpct+'" min="0" max="100" step="0.5"></div>'+
+        '</div>'+
+      '</div>';
+    var startEl=document.getElementById('ei_start');
+    if(startEl){startEl.addEventListener('change',function(){var dEl=document.getElementById('ei_due');if(dEl&&startEl.value&&startEl.value.length===10)dEl.value=addDays(startEl.value,40);});}
+    document.getElementById('editOverlay').classList.add('open');
+  }catch(e){toast('⚠ '+e.message);console.error(e);}
+}
+
+function saveEditInv(){
+  try{
+    var inv=D.find(function(i){return i.id===activeId;});
+    if(!inv)return toast('⚠ Investment not found.');
+    var name=document.getElementById('ei_name').value.trim();
+    var amt=parseFloat(document.getElementById('ei_amt').value);
+    var start=document.getElementById('ei_start').value.trim();
+    var due=document.getElementById('ei_due').value.trim();
+    var ipct=parseFloat(document.getElementById('ei_ipct').value);
+    var wpct=parseFloat(document.getElementById('ei_wpct').value);
+    if(!name)return toast('⚠ Name required.');
+    if(isNaN(amt)||amt<=0)return toast('⚠ Valid amount required.');
+    if(!start||start.length!==10)return toast('⚠ Valid start date required.');
+    if(!due||due.length!==10)return toast('⚠ Valid due date required.');
+    if(isNaN(ipct)||ipct<0)return toast('⚠ Valid investor profit % required.');
+    if(isNaN(wpct)||wpct<0||wpct>100)return toast('⚠ Valid commission % required (0-100).');
+    inv.name=name;inv.amount=rnd(amt);inv.startDate=start;inv.dueDate=due;
+    inv.ipct=rnd(ipct);inv.wpct=rnd(wpct);
+    inv.profit=rnd(amt*ipct/100);inv.commission=rnd(amt*wpct/100);
+    save();render();closeEditModal();
+    toast('✓ Investment updated for '+name+'!');
+  }catch(e){toast('⚠ '+e.message);console.error(e);}
+}
+function closeEditModal(){document.getElementById('editOverlay').classList.remove('open');}
+function editBgClick(e){if(e.target===document.getElementById('editOverlay'))closeEditModal();}
+function closeModal(){document.getElementById('overlay').classList.remove('open');activeId=null;}
+function ovBgClick(e){if(e.target===document.getElementById('overlay'))closeModal();}
+
+// RENDER
+function render(){
+  try{
+    var rows=D;
+    if(filter==='unpaid')rows=D.filter(function(i){return cycleStatus(i)==='unpaid';});
+    if(filter==='partial')rows=D.filter(function(i){return cycleStatus(i)==='partial';});
+    if(filter==='paid')rows=D.filter(function(i){return cycleStatus(i)==='paid';});
+    if(filter==='overdue')rows=D.filter(function(i){return cycleStatus(i)==='overdue';});
+    set('rowCount',rows.length);
+    var tb=document.getElementById('tBody');
+    if(!rows.length){tb.innerHTML='<tr><td colspan="16"><div class="empty"><div class="ei">📋</div><p>No records for this filter.</p></div></td></tr>';return;}
+    tb.innerHTML=rows.map(function(inv,idx){
+      var od=overdueDays(inv),pr=profitRem(inv),cr=commRem(inv),pp=profitPct(inv);
+      return'<tr>'+
+        '<td class="cn cm">'+(idx+1)+'</td>'+
+        '<td class="cb">'+esc(inv.name)+'</td>'+
+        '<td class="cn cg">₨ '+fmt(inv.amount)+'</td>'+
+        '<td class="cn">'+inv.startDate+'</td>'+
+        '<td class="cn '+(od>0?'cr':'')+'">'+inv.dueDate+'</td>'+
+        '<td>'+(od>0?'<span class="overdue-pill">'+od+' days</span>':'<span style="color:var(--green);font-size:11px;font-weight:600">✓ On time</span>')+'</td>'+
+        '<td class="cn cy">₨ '+fmt(inv.profit)+'</td>'+
+        '<td class="cn cg">₨ '+fmt(inv.profitPaid)+'</td>'+
+        '<td class="cn '+(pr>0?'ca':'cg')+'">₨ '+fmt(pr)+'</td>'+
+        '<td><div class="prog-wrap"><div class="prog-bg"><div class="prog-fill '+(pp>=100?'full':'')+'\" style="width:'+pp+'%"></div></div><span class="prog-pct">'+Math.round(pp)+'%</span></div></td>'+
+        '<td class="cn ca">₨ '+fmt(inv.commission)+'</td>'+
+        '<td class="cn cg">₨ '+fmt(inv.commPaid)+'</td>'+
+        '<td class="cn '+(cr>0?'ca':'cg')+'">₨ '+fmt(cr)+'</td>'+
+        '<td class="cn cm">C'+inv.cycle+'</td>'+
+        '<td>'+bdg(inv)+'</td>'+
+        '<td><div class="acts"><button class="btn btn-blue btn-sm" onclick="openModal('+inv.id+')">💳 Pay</button><button class="btn btn-teal btn-sm" onclick="openPayHistModal('+inv.id+')">📋</button><button class="btn btn-ghost btn-sm" onclick="openEditModal('+inv.id+')">✏</button></div></td>'+
+        '</tr>';
+    }).join('');
+    var cap=D.reduce(function(s,i){return s+i.amount;},0);
+    var prRem=D.reduce(function(s,i){return s+profitRem(i);},0);
+    var odCnt=D.filter(function(i){return cycleStatus(i)==='overdue';}).length;
+    var wTot=D.reduce(function(s,i){return s+i.commission+i.history.reduce(function(h,r){return h+r.commission;},0);},0);
+    var wPd=totalWajPaid();
+    var wRem=D.reduce(function(s,i){return s+commRem(i);},0);
+    var wPock=totalPocketAdvances();
+    var act=D.filter(function(i){return cycleStatus(i)!=='paid';}).length;
+    set('sTotal',D.length);set('sCapital','₨ '+fmt(cap));set('sProfit','₨ '+fmt(prRem));set('sOverdue',odCnt);
+    set('wTotal','₨ '+fmt(wTot));set('wPaid','₨ '+fmt(wPd));set('wPending','₨ '+fmt(wRem));set('wPocket','₨ '+fmt(wPock));set('wCycles',act);
+  }catch(e){console.error('render:',e);}
+}
+
+function setF(f,el){filter=f;document.querySelectorAll('.tab').forEach(function(b){b.classList.remove('on');});el.classList.add('on');render();}
+
+// ════════════════════════════════════════════════════════════════
+// EXPORT
+// ════════════════════════════════════════════════════════════════
+function exportCSV(){
+  var h=['#','Name','Amount','Start','Due','Overdue Days','Inv%','Profit','Profit Paid','Profit Rem','Waj%','Comm','Comm Paid','Comm Rem','Cycle','Status'];
+  var r=D.map(function(inv,i){return[i+1,inv.name,inv.amount,inv.startDate,inv.dueDate,overdueDays(inv),inv.ipct+'%',inv.profit,inv.profitPaid,profitRem(inv),inv.wpct+'%',inv.commission,inv.commPaid,commRem(inv),'C'+inv.cycle,cycleStatus(inv)];});
+  var csv=[h].concat(r).map(function(x){return x.map(function(c){return'"'+String(c||'').replace(/"/g,'""')+'"';}).join(',');}).join('\n');
+  var a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([csv],{type:'text/csv'})),download:'TechnoHub_'+tod()+'.csv'});a.click();
+  toast('✓ CSV exported.');
+}
+
+function exportJSON(){
+  var exportData={
+    exportDate:tod(),
+    exportedBy:'TechnoHub Investment Ledger v2',
+    version:'2.0',
+    summary:{
+      totalInvestors:D.length,
+      totalCapital:D.reduce(function(s,i){return s+i.amount;},0),
+      totalProfitRemaining:D.reduce(function(s,i){return s+profitRem(i);},0),
+      overdueCount:D.filter(function(i){return cycleStatus(i)==='overdue';}).length
+    },
+    investors:D.map(function(inv){
+      return{
+        name:inv.name,amount:inv.amount,startDate:inv.startDate,dueDate:inv.dueDate,
+        investorProfitPct:inv.ipct,commissionPct:inv.wpct,
+        profit:inv.profit,profitPaid:inv.profitPaid,profitRemaining:profitRem(inv),
+        commission:inv.commission,commissionPaid:inv.commPaid,commissionRemaining:commRem(inv),
+        cycle:inv.cycle,status:cycleStatus(inv),
+        profitPayments:inv.profitInstallments,commissionPayments:inv.commInstallments
+      };
+    }),
+    wajHistory:wajHistory
+  };
+  var a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([JSON.stringify(exportData,null,2)],{type:'application/json'})),download:'TechnoHub_'+tod()+'.json'});a.click();
+  toast('✓ JSON exported.');
+}
+
+function clearForm(){
+  ['fName','fAmount','fIPct','fWPct'].forEach(function(id){document.getElementById(id).value='';});
+  var n=new Date();document.getElementById('fStart').value=n.getFullYear()+'-'+pad(n.getMonth()+1)+'-'+pad(n.getDate());
+  livePreview();
+}
+function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('show');},3500);}
+
+// ════════════════════════════════════════════════════════════════
+// PDF REPORT GENERATION
+// ════════════════════════════════════════════════════════════════
+var selectedReportType='summary';
+
+function openPdfModal(){
+  selectedReportType='summary';
+  renderPdfModalBody();
+  document.getElementById('pdfOverlay').classList.add('open');
+}
+function closePdfModal(){document.getElementById('pdfOverlay').classList.remove('open');}
+function pdfBgClick(e){if(e.target===document.getElementById('pdfOverlay'))closePdfModal();}
+
+function selectReportType(type){
+  selectedReportType=type;
+  document.querySelectorAll('.report-type-card').forEach(function(c){c.classList.remove('selected');});
+  var sel=document.getElementById('rt_'+type);
+  if(sel)sel.classList.add('selected');
+}
+
+function renderPdfModalBody(){
+  var today=tod();
+  var firstDate=D.length?D.reduce(function(a,b){return a.startDate<b.startDate?a:b;},D[0]).startDate:today;
+  document.getElementById('pdfBody').innerHTML=
+    '<div style="margin-bottom:16px">'+
+    '<div style="font-family:\'DM Mono\',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--gold-dk);margin-bottom:12px">Select Report Type</div>'+
+    '<div class="report-type-grid">'+
+    '<div class="report-type-card selected" id="rt_summary" onclick="selectReportType(\'summary\')">'+
+    '<div class="rt-icon">📊</div>'+
+    '<div class="rt-title">Portfolio Summary</div>'+
+    '<div class="rt-desc">Overview of all investors, capital deployed, profit & commission status with portfolio-level KPIs</div>'+
+    '</div>'+
+    '<div class="report-type-card" id="rt_detailed" onclick="selectReportType(\'detailed\')">'+
+    '<div class="rt-icon">📋</div>'+
+    '<div class="rt-title">Detailed Investor Report</div>'+
+    '<div class="rt-desc">Full breakdown per investor with payment history, installments, and cycle details</div>'+
+    '</div>'+
+    '<div class="report-type-card" id="rt_commission" onclick="selectReportType(\'commission\')">'+
+    '<div class="rt-icon">🤝</div>'+
+    '<div class="rt-title">Commission Statement</div>'+
+    '<div class="rt-desc">Wajahat Ahmed\'s commission ledger — total owed, paid, remaining, and pocket advances</div>'+
+    '</div>'+
+    '<div class="report-type-card" id="rt_overdue" onclick="selectReportType(\'overdue\')">'+
+    '<div class="rt-icon">⏰</div>'+
+    '<div class="rt-title">Overdue & Risk Report</div>'+
+    '<div class="rt-desc">All overdue investments, days past due, outstanding balances, and status flags</div>'+
+    '</div>'+
+    '</div>'+
+    '</div>'+
+    '<div class="report-options">'+
+    '<div class="report-options-title">Report Options</div>'+
+    '<label class="chk-row"><input type="checkbox" id="opt_header" checked> Include company header (TechnoHub)</label>'+
+    '<label class="chk-row"><input type="checkbox" id="opt_date" checked> Include generation date &amp; time</label>'+
+    '<label class="chk-row"><input type="checkbox" id="opt_summary_kpi" checked> Include portfolio KPIs (capital, profit, overdue count)</label>'+
+    '<label class="chk-row"><input type="checkbox" id="opt_payment_hist"> Include payment installment history</label>'+
+    '<label class="chk-row"><input type="checkbox" id="opt_waj_hist"> Include Wajahat commission history log</label>'+
+    '<div class="date-filter-row">'+
+    '<div class="fg"><label>Filter from date (optional)</label><input type="date" id="pdf_from" value="'+firstDate+'"></div>'+
+    '<div class="fg"><label>Filter to date (optional)</label><input type="date" id="pdf_to" value="'+today+'"></div>'+
+    '</div>'+
+    '</div>'+
+    '<div style="background:var(--blue-lt);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--blue)">'+
+    '<strong>'+D.length+' investor records</strong> will be included in the report. PDF will open in a new tab for printing or download.'+
+    '</div>';
+}
+
+function generatePDF(){
+  try{
+    if(!window.jspdf){return toast('⚠ PDF library loading… please wait a moment and try again.');}
+    var jsPDF=window.jspdf.jsPDF;
+    var doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+    var reportType=selectedReportType;
+    var inclHeader=document.getElementById('opt_header').checked;
+    var inclDate=document.getElementById('opt_date').checked;
+    var inclKPI=document.getElementById('opt_summary_kpi').checked;
+    var inclPayHist=document.getElementById('opt_payment_hist').checked;
+    var inclWajHist=document.getElementById('opt_waj_hist').checked;
+    var fromDate=document.getElementById('pdf_from').value||'';
+    var toDate=document.getElementById('pdf_to').value||'';
+    var pw=doc.internal.pageSize.getWidth();
+    var ph=doc.internal.pageSize.getHeight();
+    var y=14;
+    var margin=14;
+
+    function addPage(){doc.addPage();y=14;}
+    function checkY(needed){if(y+needed>ph-14)addPage();}
+
+    // Header
+    if(inclHeader){
+      doc.setFillColor(13,13,13);
+      doc.rect(0,0,pw,22,'F');
+      doc.setTextColor(201,168,76);
+      doc.setFontSize(16);doc.setFont('helvetica','bold');
+      doc.text('TechnoHub Investment Ledger',margin,13);
+      var titles={summary:'Portfolio Summary Report',detailed:'Detailed Investor Report',commission:'Commission Statement',overdue:'Overdue & Risk Report'};
+      doc.setFontSize(10);doc.setFont('helvetica','normal');
+      doc.text(titles[reportType]||'Report',pw-margin,13,{align:'right'});
+      y=30;
+    }
+    if(inclDate){
+      doc.setTextColor(120,110,100);doc.setFontSize(8);doc.setFont('helvetica','normal');
+      var genStr='Generated: '+new Date().toLocaleString('en-PK');
+      if(fromDate&&toDate)genStr+='  |  Period: '+fmtD(fromDate)+' – '+fmtD(toDate);
+      doc.text(genStr,margin,y);
+      y+=8;
+    }
+
+    // Filter data by date if set
+    var filteredD=D.filter(function(inv){
+      if(fromDate&&inv.startDate<fromDate)return false;
+      if(toDate&&inv.dueDate>toDate)return false;
+      return true;
+    });
+    if(!fromDate&&!toDate)filteredD=D;
+
+    // ─── KPI Summary Row ────────────────────────────
+    if(inclKPI){
+      var cap=filteredD.reduce(function(s,i){return s+i.amount;},0);
+      var prRem=filteredD.reduce(function(s,i){return s+profitRem(i);},0);
+      var prPaid=filteredD.reduce(function(s,i){return s+i.profitPaid;},0);
+      var odCnt=filteredD.filter(function(i){return cycleStatus(i)==='overdue';}).length;
+      var wTot=filteredD.reduce(function(s,i){return s+i.commission;},0);
+      var wPaid=filteredD.reduce(function(s,i){return s+i.commPaid;},0);
+
+      checkY(28);
+      var kpis=[
+        {lbl:'Total Investors',val:String(filteredD.length)},
+        {lbl:'Total Capital',val:'Rs. '+fmt(cap)},
+        {lbl:'Profit Paid',val:'Rs. '+fmt(prPaid)},
+        {lbl:'Profit Remaining',val:'Rs. '+fmt(prRem)},
+        {lbl:'Commission Owed',val:'Rs. '+fmt(wTot)},
+        {lbl:'Commission Paid',val:'Rs. '+fmt(wPaid)},
+        {lbl:'Overdue',val:String(odCnt)+' investor'+(odCnt!==1?'s':'')},
+      ];
+      var kw=(pw-margin*2)/kpis.length;
+      kpis.forEach(function(k,i){
+        var kx=margin+i*kw;
+        doc.setFillColor(236,231,216);
+        doc.roundedRect(kx,y,kw-3,18,2,2,'F');
+        doc.setTextColor(122,112,96);doc.setFontSize(7);doc.setFont('helvetica','normal');
+        doc.text(k.lbl,kx+kw/2-1.5,y+5,{align:'center'});
+        doc.setTextColor(13,13,13);doc.setFontSize(10);doc.setFont('helvetica','bold');
+        doc.text(k.val,kx+kw/2-1.5,y+13,{align:'center'});
+      });
+      y+=26;
+    }
+
+    // ─── Main table body ───────────────────────────
+    if(reportType==='summary'||reportType==='detailed'||reportType==='overdue'){
+      var tableData=filteredD;
+      if(reportType==='overdue')tableData=filteredD.filter(function(i){return cycleStatus(i)==='overdue'||cycleStatus(i)==='partial'||cycleStatus(i)==='unpaid';});
+
+      checkY(12);
+      doc.setTextColor(13,13,13);doc.setFontSize(11);doc.setFont('helvetica','bold');
+      var sectionTitle=reportType==='overdue'?'Overdue & Pending Investments':'Investment Register';
+      doc.text(sectionTitle,margin,y);
+      y+=6;
+
+      var cols=[
+        {header:'#',dataKey:'num'},
+        {header:'Investor',dataKey:'name'},
+        {header:'Amount (Rs.)',dataKey:'amount'},
+        {header:'Start Date',dataKey:'start'},
+        {header:'Due Date',dataKey:'due'},
+        {header:'O/D Days',dataKey:'od'},
+        {header:'Profit %',dataKey:'ipct'},
+        {header:'Profit Total',dataKey:'profit'},
+        {header:'Profit Paid',dataKey:'ppaid'},
+        {header:'Profit Rem.',dataKey:'prem'},
+        {header:'Comm %',dataKey:'wpct'},
+        {header:'Comm Total',dataKey:'comm'},
+        {header:'Comm Paid',dataKey:'cpaid'},
+        {header:'Comm Rem.',dataKey:'crem'},
+        {header:'Cycle',dataKey:'cycle'},
+        {header:'Status',dataKey:'status'},
+      ];
+
+      var rows=tableData.map(function(inv,i){
+        return{
+          num:i+1,name:inv.name,amount:'Rs.'+fmt(inv.amount),
+          start:inv.startDate,due:inv.dueDate,
+          od:overdueDays(inv)>0?overdueDays(inv)+'d':'—',
+          ipct:inv.ipct+'%',
+          profit:'Rs.'+fmt(inv.profit),ppaid:'Rs.'+fmt(inv.profitPaid),prem:'Rs.'+fmt(profitRem(inv)),
+          wpct:inv.wpct+'%',
+          comm:'Rs.'+fmt(inv.commission),cpaid:'Rs.'+fmt(inv.commPaid),crem:'Rs.'+fmt(commRem(inv)),
+          cycle:'C'+inv.cycle,status:cycleStatus(inv).toUpperCase()
+        };
+      });
+
+      doc.autoTable({
+        startY:y,columns:cols,body:rows,
+        margin:{left:margin,right:margin},
+        theme:'grid',
+        headStyles:{fillColor:[13,13,13],textColor:[201,168,76],fontSize:7,fontStyle:'bold',cellPadding:2},
+        bodyStyles:{fontSize:7,cellPadding:2},
+        alternateRowStyles:{fillColor:[244,239,228]},
+        columnStyles:{
+          num:{cellWidth:8},name:{cellWidth:28},amount:{cellWidth:22},
+          start:{cellWidth:18},due:{cellWidth:18},od:{cellWidth:14},
+          ipct:{cellWidth:13},profit:{cellWidth:22},ppaid:{cellWidth:22},prem:{cellWidth:22},
+          wpct:{cellWidth:13},comm:{cellWidth:22},cpaid:{cellWidth:20},crem:{cellWidth:20},
+          cycle:{cellWidth:12},status:{cellWidth:18}
+        },
+        didParseCell:function(data){
+          if(data.section==='body'){
+            var raw=tableData[data.row.index];
+            if(raw){
+              var st=cycleStatus(raw);
+              if(data.column.dataKey==='status'){
+                if(st==='overdue'){data.cell.styles.textColor=[201,76,76];data.cell.styles.fontStyle='bold';}
+                else if(st==='paid'){data.cell.styles.textColor=[45,122,79];}
+                else if(st==='partial'){data.cell.styles.textColor=[45,95,164];}
+              }
+              if(data.column.dataKey==='od'&&overdueDays(raw)>0){data.cell.styles.textColor=[201,76,76];data.cell.styles.fontStyle='bold';}
+              if(data.column.dataKey==='prem'&&profitRem(raw)<=0){data.cell.styles.textColor=[45,122,79];}
+              if(data.column.dataKey==='crem'&&commRem(raw)<=0){data.cell.styles.textColor=[45,122,79];}
+            }
+          }
+        }
+      });
+      y=doc.lastAutoTable.finalY+10;
+
+      // Payment installments (detailed report)
+      if(inclPayHist&&(reportType==='detailed')){
+        filteredD.forEach(function(inv){
+          if(!inv.profitInstallments.length&&!inv.commInstallments.length)return;
+          checkY(30);
+          doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(13,13,13);
+          doc.text(inv.name+' — Payment Installments (Cycle '+inv.cycle+')',margin,y);
+          y+=5;
+          var instRows=[];
+          inv.profitInstallments.forEach(function(i){instRows.push({date:i.date,type:'Profit',amount:'Rs.'+fmt(i.amount),note:i.note||'',late:i.lateDays>0?i.lateDays+'d late':'—'});});
+          inv.commInstallments.forEach(function(i){instRows.push({date:i.date,type:'Commission',amount:'Rs.'+fmt(i.amount),note:i.note||'',late:'—'});});
+          instRows.sort(function(a,b){return a.date.localeCompare(b.date);});
+          if(instRows.length){
+            doc.autoTable({
+              startY:y,
+              columns:[{header:'Date',dataKey:'date'},{header:'Type',dataKey:'type'},{header:'Amount',dataKey:'amount'},{header:'Note',dataKey:'note'},{header:'Late',dataKey:'late'}],
+              body:instRows,
+              margin:{left:margin,right:margin},theme:'striped',
+              headStyles:{fillColor:[45,95,164],textColor:[255,255,255],fontSize:7,cellPadding:2},
+              bodyStyles:{fontSize:7,cellPadding:2},
+              columnStyles:{date:{cellWidth:25},type:{cellWidth:22},amount:{cellWidth:28},note:{cellWidth:80},late:{cellWidth:18}}
+            });
+            y=doc.lastAutoTable.finalY+8;
+          }
+        });
+      }
+    }
+
+    // ─── Commission Report ─────────────────────────
+    if(reportType==='commission'){
+      checkY(12);
+      doc.setTextColor(13,13,13);doc.setFontSize(11);doc.setFont('helvetica','bold');
+      doc.text('Wajahat Ahmed — Commission Statement',margin,y);y+=6;
+
+      // Per-investor commission
+      var commRows=D.map(function(inv,i){
+        return{
+          num:i+1,name:inv.name,amount:'Rs.'+fmt(inv.amount),
+          wpct:inv.wpct+'%',
+          commTotal:'Rs.'+fmt(inv.commission),commPaid:'Rs.'+fmt(inv.commPaid),commRem:'Rs.'+fmt(commRem(inv)),
+          cycle:'C'+inv.cycle,status:commRem(inv)<=0?'CLEARED':'PENDING'
+        };
+      });
+      doc.autoTable({
+        startY:y,
+        columns:[
+          {header:'#',dataKey:'num'},{header:'Investor',dataKey:'name'},{header:'Capital',dataKey:'amount'},
+          {header:'Comm %',dataKey:'wpct'},{header:'Comm Total',dataKey:'commTotal'},
+          {header:'Comm Paid',dataKey:'commPaid'},{header:'Comm Rem.',dataKey:'commRem'},
+          {header:'Cycle',dataKey:'cycle'},{header:'Status',dataKey:'status'}
+        ],
+        body:commRows,
+        margin:{left:margin,right:margin},theme:'grid',
+        headStyles:{fillColor:[109,63,164],textColor:[255,255,255],fontSize:7,fontStyle:'bold',cellPadding:3},
+        bodyStyles:{fontSize:8,cellPadding:3},alternateRowStyles:{fillColor:[244,239,228]},
+        columnStyles:{num:{cellWidth:10},name:{cellWidth:40}},
+        didParseCell:function(data){
+          if(data.section==='body'&&data.column.dataKey==='status'){
+            data.cell.styles.textColor=data.cell.raw==='CLEARED'?[45,122,79]:[201,122,45];
+            data.cell.styles.fontStyle='bold';
+          }
+        }
+      });
+      y=doc.lastAutoTable.finalY+12;
+
+      // Wajahat payment history
+      if(inclWajHist&&wajHistory.length){
+        checkY(12);
+        doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(13,13,13);
+        doc.text('Commission Payment History',margin,y);y+=6;
+        var whjRows=wajHistory.slice().sort(function(a,b){return b.date.localeCompare(a.date);}).map(function(h){
+          return{date:h.date,type:h.type==='pocket'?'Pocket Advance':'Paid to Waj',amount:'Rs.'+fmt(h.amount),note:h.note||'',inv:h.investorName||'—'};
+        });
+        doc.autoTable({
+          startY:y,
+          columns:[{header:'Date',dataKey:'date'},{header:'Type',dataKey:'type'},{header:'Amount',dataKey:'amount'},{header:'Investor',dataKey:'inv'},{header:'Note',dataKey:'note'}],
+          body:whjRows,
+          margin:{left:margin,right:margin},theme:'striped',
+          headStyles:{fillColor:[30,138,122],textColor:[255,255,255],fontSize:7,cellPadding:2},
+          bodyStyles:{fontSize:7,cellPadding:2},
+          columnStyles:{date:{cellWidth:25},type:{cellWidth:28},amount:{cellWidth:28},inv:{cellWidth:40},note:{cellWidth:80}}
+        });
+        y=doc.lastAutoTable.finalY+8;
+      }
+    }
+
+    // Footer on each page
+    var pageCount=doc.internal.getNumberOfPages();
+    for(var i=1;i<=pageCount;i++){
+      doc.setPage(i);
+      doc.setFontSize(7);doc.setTextColor(180,170,160);doc.setFont('helvetica','normal');
+      doc.text('TechnoHub Investment Ledger — Confidential',margin,ph-7);
+      doc.text('Page '+i+' of '+pageCount,pw-margin,ph-7,{align:'right'});
+    }
+
+    var filename='TechnoHub_'+selectedReportType+'_Report_'+tod()+'.pdf';
+    doc.save(filename);
+    closePdfModal();
+    toast('✓ PDF report downloaded: '+filename);
+  }catch(e){toast('⚠ PDF Error: '+e.message);console.error(e);}
+}
+
+// ════════════════════════════════════════════════════════════════
+// IMPORT DATA
+// ════════════════════════════════════════════════════════════════
+function openImportModal(){
+  importParsedData=null;importFmt='csv';
+  renderImportBody();
+  document.getElementById('importOverlay').classList.add('open');
+  document.getElementById('importFtr').innerHTML='<button class="btn btn-ghost btn-md" onclick="closeImportModal()">Cancel</button>';
+}
+function closeImportModal(){document.getElementById('importOverlay').classList.remove('open');}
+function importBgClick(e){if(e.target===document.getElementById('importOverlay'))closeImportModal();}
+
+function renderImportBody(){
+  document.getElementById('importBody').innerHTML=
+    '<div style="margin-bottom:14px">'+
+    '<div style="font-family:\'DM Mono\',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--gold-dk);margin-bottom:10px">Select Format</div>'+
+    '<div class="import-format-tabs">'+
+    '<button class="import-fmt-tab on" id="ifmt_csv" onclick="setImportFmt(\'csv\',this)">📄 CSV</button>'+
+    '<button class="import-fmt-tab" id="ifmt_json" onclick="setImportFmt(\'json\',this)">📦 JSON</button>'+
+    '<button class="import-fmt-tab" id="ifmt_xlsx" onclick="setImportFmt(\'xlsx\',this)">📊 Excel (XLSX)</button>'+
+    '</div>'+
+    '</div>'+
+    '<div class="template-section">'+
+    '<div class="template-section-title">📥 Download Import Templates</div>'+
+    '<div class="template-btn-row">'+
+    '<button class="btn btn-ghost btn-sm" onclick="downloadTemplate(\'csv\')">⬇ CSV Template</button>'+
+    '<button class="btn btn-ghost btn-sm" onclick="downloadTemplate(\'json\')">⬇ JSON Template</button>'+
+    '<button class="btn btn-ghost btn-sm" onclick="downloadTemplate(\'xlsx\')">⬇ Excel Template</button>'+
+    '</div>'+
+    '</div>'+
+    '<div class="import-zone" id="importZone" onclick="triggerImportFile()" ondragover="importDragOver(event)" ondragleave="importDragLeave(event)" ondrop="importDrop(event)">'+
+    '<div class="import-zone-icon">📂</div>'+
+    '<div class="import-zone-title">Drop file here or click to browse</div>'+
+    '<div class="import-zone-sub" id="importZoneSub">Accepts .csv, .json, .xlsx files</div>'+
+    '</div>'+
+    '<div id="importPreviewArea"></div>';
+}
+
+function setImportFmt(fmt,el){
+  importFmt=fmt;
+  document.querySelectorAll('.import-fmt-tab').forEach(function(t){t.classList.remove('on');});
+  el.classList.add('on');
+  var subText={csv:'Accepts .csv files — see template for required columns',json:'Accepts .json files — TechnoHub export format or simplified format',xlsx:'Accepts .xlsx Excel files — see template for column layout'};
+  var sub=document.getElementById('importZoneSub');
+  if(sub)sub.textContent=subText[fmt]||'';
+  document.getElementById('importPreviewArea').innerHTML='';
+  importParsedData=null;
+  document.getElementById('importFtr').innerHTML='<button class="btn btn-ghost btn-md" onclick="closeImportModal()">Cancel</button>';
+}
+
+function triggerImportFile(){
+  var inp=document.getElementById('importFileInput');
+  var accepts={csv:'.csv',json:'.json',xlsx:'.xlsx,.xls'};
+  inp.accept=accepts[importFmt]||'.csv,.json,.xlsx';
+  inp.value='';
+  inp.onchange=function(){if(inp.files[0])processImportFile(inp.files[0]);};
+  inp.click();
+}
+
+function importDragOver(e){e.preventDefault();document.getElementById('importZone').classList.add('drag-over');}
+function importDragLeave(e){document.getElementById('importZone').classList.remove('drag-over');}
+function importDrop(e){
+  e.preventDefault();
+  document.getElementById('importZone').classList.remove('drag-over');
+  var file=e.dataTransfer.files[0];
+  if(file)processImportFile(file);
+}
+
+function processImportFile(file){
+  var name=file.name.toLowerCase();
+  var area=document.getElementById('importPreviewArea');
+  area.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">⏳ Reading file...</div>';
+  if(name.endsWith('.csv')){readCSV(file);}
+  else if(name.endsWith('.json')){readJSON(file);}
+  else if(name.endsWith('.xlsx')||name.endsWith('.xls')){readXLSX(file);}
+  else{area.innerHTML='<div class="import-status err">⚠ Unsupported file type. Please use .csv, .json, or .xlsx</div>';}
+}
+
+function parseCSVLine(line){
+  var result=[],current='',inQ=false;
+  for(var i=0;i<line.length;i++){
+    var ch=line[i];
+    if(ch==='"'){
+      if(inQ&&line[i+1]==='"'){current+='"';i++;}
+      else inQ=!inQ;
+    }else if(ch===','&&!inQ){result.push(current.trim());current='';}
+    else current+=ch;
+  }
+  result.push(current.trim());
+  return result;
+}
+
+function readCSV(file){
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var text=e.target.result;
+      var lines=text.split(/\r?\n/).filter(function(l){return l.trim();});
+      if(lines.length<2){showImportStatus('err','CSV file is empty or has only headers.');return;}
+      var headers=parseCSVLine(lines[0]).map(function(h){return h.replace(/^"|"$/g,'').trim().toLowerCase();});
+      var rows=[];
+      for(var i=1;i<lines.length;i++){
+        var vals=parseCSVLine(lines[i]);
+        var row={};
+        headers.forEach(function(h,j){row[h]=vals[j]?vals[j].replace(/^"|"$/g,'').trim():'';});
+        rows.push(row);
+      }
+      importParsedData=mapToInvestors(rows,headers,'csv');
+      showImportPreview(importParsedData,rows.length);
+    }catch(ex){showImportStatus('err','Parse error: '+ex.message);console.error(ex);}
+  };
+  reader.readAsText(file);
+}
+
+function readJSON(file){
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var obj=JSON.parse(e.target.result);
+      var investors=[];
+      // Support TechnoHub export format
+      if(obj.investors&&Array.isArray(obj.investors)){investors=obj.investors;}
+      // Support array of investors directly
+      else if(Array.isArray(obj)){investors=obj;}
+      else{showImportStatus('err','JSON must be an array of investors or TechnoHub export format.');return;}
+      importParsedData=investors.map(function(r){return normalizeInvestorObj(r);}).filter(Boolean);
+      showImportPreview(importParsedData,investors.length);
+    }catch(ex){showImportStatus('err','JSON parse error: '+ex.message);console.error(ex);}
+  };
+  reader.readAsText(file);
+}
+
+function readXLSX(file){
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      if(!window.XLSX){showImportStatus('err','Excel library not loaded. Please refresh the page.');return;}
+      var wb=XLSX.read(e.target.result,{type:'array'});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+      if(!rows.length){showImportStatus('err','Excel sheet is empty.');return;}
+      var headers=Object.keys(rows[0]).map(function(h){return h.toLowerCase().trim();});
+      var normalizedRows=rows.map(function(r){
+        var nr={};
+        Object.keys(r).forEach(function(k){nr[k.toLowerCase().trim()]=String(r[k]||'').trim();});
+        return nr;
+      });
+      importParsedData=mapToInvestors(normalizedRows,headers,'xlsx');
+      showImportPreview(importParsedData,rows.length);
+    }catch(ex){showImportStatus('err','Excel read error: '+ex.message);console.error(ex);}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// Map raw CSV/XLSX rows to investor objects using flexible column matching
+function mapToInvestors(rows,headers,fmt){
+  // Column aliases
+  var aliases={
+    name:['name','investor','investor name','investor_name','investorname','full name','fullname','person'],
+    amount:['amount','investment','investment amount','capital','invested','principal','sum','amount (rs.)','amount(rs)'],
+    startdate:['startdate','start date','start_date','start','date','investment date','from'],
+    ipct:['ipct','profit%','investor profit%','profit pct','profit percent','investor%','profitpct','inv%','investorprofitpct','investor profit % (per 40-day cycle)'],
+    wpct:['wpct','commission%','waj commission%','waj%','commission percent','comm%','commissionpct','wajahatcomm','wajahat commission %']
+  };
+  function findCol(row,keys){
+    for(var i=0;i<keys.length;i++){
+      var val=row[keys[i]];
+      if(val!==undefined&&val!=='')return val;
+    }
+    return null;
+  }
+  return rows.map(function(r,idx){
+    try{
+      var name=findCol(r,aliases.name);
+      var amtRaw=findCol(r,aliases.amount);
+      var start=findCol(r,aliases.startdate);
+      var ipctRaw=findCol(r,aliases.ipct);
+      var wpctRaw=findCol(r,aliases.wpct);
+      if(!name||!amtRaw)return null;
+      var amt=parseFloat(String(amtRaw).replace(/[^0-9.]/g,''));
+      if(isNaN(amt)||amt<=0)return null;
+      // Normalize date
+      var sd=normalizeDate(start||tod());
+      var ipct=parseFloat(String(ipctRaw||'0').replace(/[^0-9.]/g,''))||0;
+      var wpct=parseFloat(String(wpctRaw||'0').replace(/[^0-9.]/g,''))||0;
+      return{name:String(name).trim(),amount:amt,startDate:sd,ipct:ipct,wpct:wpct,_rowNum:idx+2};
+    }catch(e){return null;}
+  }).filter(Boolean);
+}
+
+function normalizeInvestorObj(r){
+  var name=r.name||r.investorName||r.investor;
+  var amt=r.amount||r.investment||r.capital;
+  var start=r.startDate||r.startdate||r.start;
+  var ipct=r.ipct||r.investorProfitPct||r.profitPct||r['investor profit%']||0;
+  var wpct=r.wpct||r.commissionPct||r.commPct||r['commission%']||0;
+  if(!name||!amt)return null;
+  return{
+    name:String(name).trim(),
+    amount:parseFloat(String(amt).replace(/[^0-9.]/g,''))||0,
+    startDate:normalizeDate(start||tod()),
+    ipct:parseFloat(String(ipct).replace(/[^0-9.]/g,''))||0,
+    wpct:parseFloat(String(wpct).replace(/[^0-9.]/g,''))||0
+  };
+}
+
+function normalizeDate(ds){
+  if(!ds)return tod();
+  var s=String(ds).trim();
+  // Already YYYY-MM-DD
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;
+  // DD/MM/YYYY or DD-MM-YYYY
+  var m1=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if(m1)return m1[3]+'-'+pad(parseInt(m1[2]))+'-'+pad(parseInt(m1[1]));
+  // MM/DD/YYYY
+  var m2=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m2)return m2[3]+'-'+pad(parseInt(m2[1]))+'-'+pad(parseInt(m2[2]));
+  // Try JS Date parse as fallback
+  try{
+    var dt=new Date(s);
+    if(!isNaN(dt.getTime()))return dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate());
+  }catch(e){}
+  return tod();
+}
+
+function showImportPreview(records,totalRows){
+  var area=document.getElementById('importPreviewArea');
+  var skipped=totalRows-records.length;
+  var statusHtml='<div class="import-status '+(records.length>0?'ok':'err')+'">'+
+    (records.length>0?'✓ '+records.length+' records ready to import':'⚠ No valid records found')+
+    (skipped>0?' · '+skipped+' rows skipped (missing name or amount)':'')+
+    '</div>';
+  if(!records.length){area.innerHTML=statusHtml;return;}
+
+  var previewRows=records.slice(0,5);
+  var tableHtml='<table class="import-preview-table">'+
+    '<thead><tr><th>#</th><th>Name</th><th>Amount</th><th>Start Date</th><th>Profit %</th><th>Comm %</th><th>Profit</th><th>Due Date</th></tr></thead>'+
+    '<tbody>'+
+    previewRows.map(function(r,i){
+      var due=addDays(r.startDate,40);
+      var pr=rnd(r.amount*r.ipct/100);
+      return'<tr><td>'+(i+1)+'</td><td>'+esc(r.name)+'</td><td>Rs. '+fmt(r.amount)+'</td><td>'+r.startDate+'</td><td>'+r.ipct+'%</td><td>'+r.wpct+'%</td><td>Rs. '+fmt(pr)+'</td><td>'+due+'</td></tr>';
+    }).join('')+
+    '</tbody></table>'+
+    (records.length>5?'<div style="font-size:11px;color:var(--muted);margin-bottom:8px">...and '+(records.length-5)+' more records</div>':'');
+
+  // Check for existing name conflicts
+  var conflicts=[];
+  records.forEach(function(r){
+    var existing=D.find(function(inv){return inv.name.toLowerCase()===r.name.toLowerCase();});
+    if(existing)conflicts.push(r.name);
+  });
+
+  var conflictHtml='';
+  if(conflicts.length){
+    conflictHtml='<div class="import-status warn">⚠ '+conflicts.length+' name conflict(s) found: <strong>'+conflicts.join(', ')+'</strong><br>On import you can choose to skip duplicates or add them anyway.</div>';
+  }
+
+  var modeHtml='<div class="report-options" style="margin-bottom:10px">'+
+    '<div class="report-options-title">Import Mode</div>'+
+    '<label class="chk-row"><input type="radio" name="importMode" value="skip" checked id="im_skip"> Skip duplicate names</label>'+
+    '<label class="chk-row"><input type="radio" name="importMode" value="add" id="im_add"> Add all records (allow duplicates)</label>'+
+    '<label class="chk-row"><input type="radio" name="importMode" value="replace" id="im_replace"> Replace existing records with same name</label>'+
+    '</div>';
+
+  area.innerHTML=statusHtml+conflictHtml+tableHtml+modeHtml;
+  document.getElementById('importFtr').innerHTML=
+    '<button class="btn btn-ghost btn-md" onclick="closeImportModal()">Cancel</button>'+
+    '<button class="btn btn-gold btn-lg" onclick="executeImport()">✓ Import '+records.length+' Records</button>';
+}
+
+function showImportStatus(type,msg){
+  document.getElementById('importPreviewArea').innerHTML='<div class="import-status '+type+'">'+esc(msg)+'</div>';
+}
+
+function executeImport(){
+  if(!importParsedData||!importParsedData.length)return toast('⚠ No data to import.');
+  var modeEl=document.querySelector('input[name="importMode"]:checked');
+  var mode=modeEl?modeEl.value:'skip';
+  var imported=0,skipped=0,replaced=0;
+  importParsedData.forEach(function(r){
+    var existingIdx=D.findIndex(function(inv){return inv.name.toLowerCase()===r.name.toLowerCase();});
+    if(existingIdx>=0){
+      if(mode==='skip'){skipped++;return;}
+      if(mode==='replace'){
+        D[existingIdx]=buildInvestor(r);replaced++;return;
+      }
+    }
+    D.push(buildInvestor(r));
+    imported++;
+  });
+  save();render();closeImportModal();
+  var msg='✓ Import complete: '+imported+' added';
+  if(replaced>0)msg+=', '+replaced+' replaced';
+  if(skipped>0)msg+=', '+skipped+' skipped';
+  toast(msg+'.');
+}
+
+function buildInvestor(r){
+  return{
+    id:Date.now()+Math.floor(Math.random()*9999),
+    name:r.name,amount:rnd(r.amount),
+    startDate:r.startDate,dueDate:addDays(r.startDate,40),
+    ipct:r.ipct,wpct:r.wpct,
+    profit:rnd(r.amount*r.ipct/100),commission:rnd(r.amount*r.wpct/100),
+    profitPaid:0,commPaid:0,
+    profitInstallments:[],commInstallments:[],pocketPayments:[],
+    cycle:1,history:[]
+  };
+}
+
+function downloadTemplate(fmt){
+  if(fmt==='csv'){
+    var csvTemplate='Name,Amount,Start Date,Investor Profit % (per 40-day cycle),Wajahat Commission %\n'+
+      'Ahmad Khan,500000,2025-01-01,9,4.5\n'+
+      'Fatima Bibi,300000,2025-01-15,8,4\n'+
+      'Usman Ali,750000,2025-02-01,9.5,5\n';
+    var a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([csvTemplate],{type:'text/csv'})),download:'TechnoHub_Import_Template.csv'});a.click();
+    toast('✓ CSV template downloaded.');
+  }else if(fmt==='json'){
+    var jsonTemplate=JSON.stringify({
+      investors:[
+        {name:'Ahmad Khan',amount:500000,startDate:'2025-01-01',ipct:9,wpct:4.5},
+        {name:'Fatima Bibi',amount:300000,startDate:'2025-01-15',ipct:8,wpct:4},
+        {name:'Usman Ali',amount:750000,startDate:'2025-02-01',ipct:9.5,wpct:5}
+      ]
+    },null,2);
+    var a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([jsonTemplate],{type:'application/json'})),download:'TechnoHub_Import_Template.json'});a.click();
+    toast('✓ JSON template downloaded.');
+  }else if(fmt==='xlsx'){
+    if(!window.XLSX){return toast('⚠ Excel library not loaded. Please refresh the page.');}
+    var wb=XLSX.utils.book_new();
+    var wsData=[
+      ['Name','Amount','Start Date','Investor Profit % (per 40-day cycle)','Wajahat Commission %'],
+      ['Ahmad Khan',500000,'2025-01-01',9,4.5],
+      ['Fatima Bibi',300000,'2025-01-15',8,4],
+      ['Usman Ali',750000,'2025-02-01',9.5,5]
+    ];
+    var ws=XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols']=[{wch:20},{wch:15},{wch:15},{wch:35},{wch:22}];
+    XLSX.utils.book_append_sheet(wb,ws,'Investors');
+    XLSX.writeFile(wb,'TechnoHub_Import_Template.xlsx');
+    toast('✓ Excel template downloaded.');
+  }
+}
+
+bootstrapApp();
+</script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
