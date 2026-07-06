@@ -113,7 +113,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
 .bdg-partial{background:var(--blue-lt);color:var(--blue)}
 .bdg-unpaid{background:var(--amber-lt);color:var(--amber)}
 .bdg-overdue{background:var(--rust-lt);color:var(--rust)}
+.bdg-closed{background:var(--surface);color:var(--muted)}
+.bdg-withdrawing{background:var(--blue-lt);color:var(--blue)}
 .bdg-dot{width:5px;height:5px;border-radius:50%;background:currentColor}
+.col-select-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px 10px}
+.col-select-grid .chk-row{padding:4px 0;font-size:12px}
+.row-closed{opacity:.55}
 .acts{display:flex;gap:5px;align-items:center}
 .empty{text-align:center;padding:56px 20px;color:var(--muted)}
 .empty .ei{font-size:36px;margin-bottom:10px;opacity:.4}
@@ -163,6 +168,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
 .ii-amt{font-weight:700;color:var(--green);font-family:'DM Mono',monospace;font-size:12px;text-align:right}
 .ii-pocket{font-size:9px;padding:2px 5px;border-radius:3px;background:var(--purple-lt);color:var(--purple);font-weight:700;white-space:nowrap;font-family:'DM Mono',monospace}
 .ii-adj{font-size:9px;padding:2px 5px;border-radius:3px;background:var(--teal-lt);color:var(--teal);font-weight:700;white-space:nowrap;font-family:'DM Mono',monospace}
+.ii-waived{font-size:9px;padding:2px 5px;border-radius:3px;background:var(--rust-lt);color:var(--rust);font-weight:700;white-space:nowrap;font-family:'DM Mono',monospace}
 .ii-del{width:22px;height:22px;border-radius:4px;border:none;background:var(--rust-lt);color:var(--rust);cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center;transition:background .15s;flex-shrink:0}
 .ii-del:hover{background:var(--rust);color:#fff}
 .no-inst{font-size:12px;color:var(--muted);text-align:center;padding:10px 0}
@@ -220,6 +226,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
 .ph-tag.comm{background:var(--amber-lt);color:var(--amber)}
 .ph-tag.pocket{background:var(--purple-lt);color:var(--purple)}
 .ph-tag.adj{background:var(--teal-lt);color:var(--teal)}
+.ph-entry.waived-entry{border-left-color:var(--rust)}
+.ph-tag.waived{background:var(--rust-lt);color:var(--rust)}
+.ph-amt.rust{color:var(--rust)}
+.ph-entry.withdraw-entry{border-left-color:var(--blue)}
+.ph-tag.withdraw{background:var(--blue-lt);color:var(--blue)}
+.ph-amt.blue{color:var(--blue)}
 .ph-cycle-header{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);padding:10px 0 6px;border-top:1px solid var(--border);margin-top:8px}
 .ph-cycle-header:first-child{border-top:none;padding-top:0;margin-top:0}
 .ph-empty{text-align:center;padding:40px 0;color:var(--muted);font-size:13px}
@@ -240,6 +252,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
 .whi-tag{font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;font-family:'DM Mono',monospace;white-space:nowrap}
 .whi-tag.paid{background:var(--purple-lt);color:var(--purple)}
 .whi-tag.pocket{background:var(--teal-lt);color:var(--teal)}
+.whi-tag.pocket-profit{background:var(--purple-lt);color:var(--purple)}
+.whi-tag.adjustment{background:var(--green-lt);color:var(--green)}
+.waj-hist-item.adjustment{border-left-color:var(--green)}
+.waj-hist-item.pocket-profit{border-left-color:var(--purple)}
+.whi-amt.green{color:var(--green)}
+.whi-amt.purple{color:var(--purple)}
 .whi-del{width:22px;height:22px;border-radius:4px;border:none;background:var(--rust-lt);color:var(--rust);cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .whi-del:hover{background:var(--rust);color:#fff}
 .waj-no-hist{font-size:12px;color:rgba(255,255,255,.35);text-align:center;padding:12px 0}
@@ -417,6 +435,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
         <button class="tab" onclick="setF('partial',this)">Partial</button>
         <button class="tab" onclick="setF('paid',this)">Fully Paid</button>
         <button class="tab" onclick="setF('overdue',this)">Overdue</button>
+        <button class="tab" onclick="setF('withdrawing',this)">Withdrawing</button>
+        <button class="tab" onclick="setF('closed',this)">Closed</button>
       </div>
       <div class="t-info"><strong id="rowCount">0</strong> records</div>
     </div>
@@ -587,9 +607,18 @@ function normalizeState(input){
     if(!inv.history)inv.history=[];
     if(!inv.cycle)inv.cycle=1;
     if(!inv.pocketPayments)inv.pocketPayments=[];
+    if(!inv.withdrawalInstallments)inv.withdrawalInstallments=[];
+    if(inv.withdrawn===undefined)inv.withdrawn=false;
+    if(inv.withdrawnAmount===undefined)inv.withdrawnAmount=rnd(inv.withdrawalInstallments.reduce(function(s,i){return s+i.amount;},0));
+    if(inv.closed===undefined)inv.closed=false;
+    if(inv.closedDate===undefined)inv.closedDate=null;
+  });
+  safeWaj.forEach(function(h){
+    if(h.type==='pocket'&&!h.payFor)h.payFor='commission'; // legacy pocket entries were always commission-side
+    if(h.type==='pocket'&&h.reconciled===undefined)h.reconciled=0;
   });
   var all=safeD.flatMap(function(inv){
-    return inv.profitInstallments.map(function(i){return i.id;}).concat(inv.commInstallments.map(function(i){return i.id;}));
+    return inv.profitInstallments.map(function(i){return i.id;}).concat(inv.commInstallments.map(function(i){return i.id;})).concat(inv.withdrawalInstallments.map(function(i){return i.id;}));
   }).filter(Boolean);
   var wids=safeWaj.map(function(h){return h.id;}).filter(Boolean);
   var allIds=all.concat(wids);
@@ -744,14 +773,33 @@ function cycleStatus(inv){
   return'unpaid';
 }
 function bdg(inv){
+  if(inv.closed)return'<span class="bdg bdg-closed"><span class="bdg-dot"></span>Closed</span>';
   var st=cycleStatus(inv);
-  if(st==='paid')return'<span class="bdg bdg-paid"><span class="bdg-dot"></span>Fully Paid</span>';
-  if(st==='partial')return'<span class="bdg bdg-partial"><span class="bdg-dot"></span>Partial</span>';
-  if(st==='overdue')return'<span class="bdg bdg-overdue"><span class="bdg-dot"></span>Overdue</span>';
-  return'<span class="bdg bdg-unpaid"><span class="bdg-dot"></span>Unpaid</span>';
+  var base;
+  if(st==='paid')base='<span class="bdg bdg-paid"><span class="bdg-dot"></span>Fully Paid</span>';
+  else if(st==='partial')base='<span class="bdg bdg-partial"><span class="bdg-dot"></span>Partial</span>';
+  else if(st==='overdue')base='<span class="bdg bdg-overdue"><span class="bdg-dot"></span>Overdue</span>';
+  else base='<span class="bdg bdg-unpaid"><span class="bdg-dot"></span>Unpaid</span>';
+  if(inv.withdrawn)base+=' <span class="bdg bdg-withdrawing"><span class="bdg-dot"></span>Withdrawing</span>';
+  return base;
 }
 
-function totalPocketAdvances(){return rnd(wajHistory.filter(function(h){return h.type==='pocket';}).reduce(function(s,h){return s+h.amount;},0));}
+// PRINCIPAL WITHDRAWAL
+function withdrawRem(inv){return Math.max(0,rnd(inv.amount-(inv.withdrawnAmount||0)));}
+function withdrawPct(inv){return inv.amount>0?Math.min(100,(inv.withdrawnAmount||0)/inv.amount*100):0;}
+
+// POCKET / RECONCILIATION HELPERS
+function totalPocketAdvances(){
+  // Outstanding (unreconciled) pocket advances across both profit & commission pocket payments
+  return rnd(wajHistory.filter(function(h){return h.type==='pocket';}).reduce(function(s,h){return s+Math.max(0,h.amount-(h.reconciled||0));},0));
+}
+function totalPocketByType(payFor){
+  return rnd(wajHistory.filter(function(h){return h.type==='pocket'&&h.payFor===payFor;}).reduce(function(s,h){return s+h.amount;},0));
+}
+function totalPocketOutstandingByType(payFor){
+  return rnd(wajHistory.filter(function(h){return h.type==='pocket'&&h.payFor===payFor;}).reduce(function(s,h){return s+Math.max(0,h.amount-(h.reconciled||0));},0));
+}
+function totalReconciled(){return rnd(wajHistory.filter(function(h){return h.type==='adjustment';}).reduce(function(s,h){return s+h.amount;},0));}
 function totalWajPaid(){return rnd(wajHistory.filter(function(h){return h.type==='paid';}).reduce(function(s,h){return s+h.amount;},0));}
 
 // LIVE PREVIEW
@@ -784,7 +832,8 @@ function addInv(){
     if(isNaN(wpct)||wpct<0||wpct>100){wpctEl.focus();return toast('⚠ Commission % must be 0–100.');}
     D.push({id:Date.now(),name:name,amount:amt,startDate:start,dueDate:addDays(start,40),
       ipct:ipct,wpct:wpct,profit:rnd(amt*ipct/100),commission:rnd(amt*wpct/100),
-      profitPaid:0,commPaid:0,profitInstallments:[],commInstallments:[],pocketPayments:[],cycle:1,history:[]});
+      profitPaid:0,commPaid:0,profitInstallments:[],commInstallments:[],pocketPayments:[],cycle:1,history:[],
+      withdrawn:false,withdrawalInstallments:[],withdrawnAmount:0,closed:false,closedDate:null});
     save();render();clearForm();
     toast('✓ Investment added for '+name+'!');
   }catch(e){toast('⚠ '+e.message);console.error(e);}
@@ -817,6 +866,35 @@ function addProfitInst(invId){
     inv.profitPaid=rnd(inv.profitInstallments.reduce(function(s,i){return s+i.amount;},0));
     save();render();openModal(invId);
     toast('✓ Profit ₨'+fmt(amt)+' recorded'+(od>0?' ('+od+'d late)':'')+'.');
+  }catch(e){toast('⚠ '+e.message);console.error(e);}
+}
+
+// WAIVE PROFIT
+function toggleWaiveForm(invId){
+  var el=document.getElementById('waive_form_'+invId);
+  if(!el)return;
+  document.querySelectorAll('.inst-item-edit.show').forEach(function(x){if(x!==el)x.classList.remove('show');});
+  el.classList.toggle('show');
+}
+function execWaiveProfit(invId){
+  try{
+    var inv=D.find(function(i){return i.id===invId;});
+    if(!inv)return toast('⚠ Not found.');
+    var amtEl=document.getElementById('wv_amt_'+invId),dateEl=document.getElementById('wv_date_'+invId),noteEl=document.getElementById('wv_note_'+invId);
+    if(!amtEl)return toast('⚠ Form not found. Reopen modal.');
+    var amtRaw=amtEl.value.trim();
+    if(!amtRaw)return toast('⚠ Enter an amount to waive.');
+    var amt=parseFloat(amtRaw);
+    if(isNaN(amt)||amt<=0)return toast('⚠ Enter a valid amount.');
+    var rem=profitRem(inv);
+    if(amt>rem+0.005)return toast('⚠ Amount ₨'+fmt(amt)+' exceeds remaining profit ₨'+fmt(rem)+'.');
+    var date=dateEl&&dateEl.value?dateEl.value:tod();
+    var note=noteEl?noteEl.value.trim():'';
+    if(!confirm('Waive ₨'+fmt(amt)+' of profit for '+inv.name+'? This forgives the amount — no cash will be recorded as received.'))return;
+    inv.profitInstallments.push({id:nextId(),date:date,amount:amt,note:'[Waived] '+(note||'Profit waived by Wajahat'),waived:true});
+    inv.profitPaid=rnd(inv.profitInstallments.reduce(function(s,i){return s+i.amount;},0));
+    save();render();openModal(invId);
+    toast('✓ ₨'+fmt(amt)+' profit waived for '+inv.name+'.');
   }catch(e){toast('⚠ '+e.message);console.error(e);}
 }
 
@@ -857,6 +935,57 @@ function delCommInst(invId,instId){
   inv.commInstallments=inv.commInstallments.filter(function(i){return i.id!==instId;});
   inv.commPaid=rnd(inv.commInstallments.reduce(function(s,i){return s+i.amount;},0));
   save();render();openModal(invId);
+}
+
+// PRINCIPAL WITHDRAWAL
+function startWithdrawal(invId){
+  var inv=D.find(function(i){return i.id===invId;});if(!inv)return;
+  if(inv.withdrawn)return;
+  var warn='';
+  if(profitRem(inv)>0||commRem(inv)>0)warn='\n\nNote: Profit and/or commission for the current cycle is not fully settled yet — you can still proceed.';
+  if(!confirm('Start withdrawal for '+inv.name+'?\n\nTheir principal of ₨'+fmt(inv.amount)+' will now be tracked for return in chunks. Once fully returned, the investor will be closed automatically.'+warn))return;
+  inv.withdrawn=true;
+  save();render();openModal(invId);
+  toast('✓ Withdrawal started for '+inv.name+'.');
+}
+function addWithdrawalInst(invId){
+  try{
+    var inv=D.find(function(i){return i.id===invId;});
+    if(!inv)return toast('⚠ Not found.');
+    var amtEl=document.getElementById('wi_amt_'+invId),dateEl=document.getElementById('wi_date_'+invId),noteEl=document.getElementById('wi_note_'+invId);
+    if(!amtEl)return toast('⚠ Form not found. Reopen modal.');
+    var amtRaw=amtEl.value.trim();
+    if(!amtRaw)return toast('⚠ Enter a repayment amount.');
+    var amt=parseFloat(amtRaw);
+    if(isNaN(amt)||amt<=0)return toast('⚠ Enter a valid amount.');
+    var rem=withdrawRem(inv);
+    if(amt>rem+0.005)return toast('⚠ Amount ₨'+fmt(amt)+' exceeds remaining principal ₨'+fmt(rem)+'.');
+    var date=dateEl&&dateEl.value?dateEl.value:tod();
+    var note=noteEl?noteEl.value.trim():'';
+    if(!inv.withdrawalInstallments)inv.withdrawalInstallments=[];
+    inv.withdrawalInstallments.push({id:nextId(),date:date,amount:amt,note:note});
+    inv.withdrawnAmount=rnd(inv.withdrawalInstallments.reduce(function(s,i){return s+i.amount;},0));
+    var closedNow=false;
+    if(withdrawRem(inv)<=0.005){inv.closed=true;inv.closedDate=date;closedNow=true;}
+    save();render();openModal(invId);
+    toast(closedNow?('✓ '+inv.name+' fully repaid — investor closed.'):('✓ ₨'+fmt(amt)+' principal returned to '+inv.name+'.'));
+  }catch(e){toast('⚠ '+e.message);console.error(e);}
+}
+function delWithdrawalInst(invId,instId){
+  var inv=D.find(function(i){return i.id===invId;});if(!inv)return;
+  var inst=(inv.withdrawalInstallments||[]).find(function(i){return i.id===instId;});if(!inst)return;
+  if(!confirm('Delete principal repayment of ₨'+fmt(inst.amount)+'?'))return;
+  inv.withdrawalInstallments=inv.withdrawalInstallments.filter(function(i){return i.id!==instId;});
+  inv.withdrawnAmount=rnd(inv.withdrawalInstallments.reduce(function(s,i){return s+i.amount;},0));
+  if(withdrawRem(inv)>0.005&&inv.closed){inv.closed=false;inv.closedDate=null;}
+  save();render();openModal(invId);
+}
+function reopenInvestor(invId){
+  var inv=D.find(function(i){return i.id===invId;});if(!inv)return;
+  if(!confirm('Reopen '+inv.name+'? This undoes the closed status (withdrawal installments are kept).'))return;
+  inv.closed=false;inv.closedDate=null;
+  save();render();openModal(invId);
+  toast('✓ '+inv.name+' reopened.');
 }
 
 // ROLL CYCLE
@@ -973,59 +1102,94 @@ function closeWajHistModal(){document.getElementById('wajHistOverlay').classList
 function wajHistBgClick(e){if(e.target===document.getElementById('wajHistOverlay'))closeWajHistModal();}
 
 function renderWajHistBody(){
-  var totalPaid=wajHistory.filter(function(h){return h.type==='paid';}).reduce(function(s,h){return s+h.amount;},0);
-  var totalPocket=wajHistory.filter(function(h){return h.type==='pocket';}).reduce(function(s,h){return s+h.amount;},0);
+  var totalPaid=totalWajPaid();
+  var outProfit=totalPocketOutstandingByType('profit');
+  var outComm=totalPocketOutstandingByType('commission');
+  var reconciled=totalReconciled();
+  var hasOutstanding=(outProfit+outComm)>0.005;
   var sorted=wajHistory.slice().sort(function(a,b){return b.date.localeCompare(a.date);});
   var rows=sorted.length?sorted.map(function(h){
     var isPocket=h.type==='pocket';
-    return'<div class="waj-hist-item'+(isPocket?' pocket':'')+'">'+
+    var isAdj=h.type==='adjustment';
+    var isPocketProfit=isPocket&&h.payFor==='profit';
+    var cls=isAdj?'adjustment':(isPocketProfit?'pocket-profit':(isPocket?'pocket':''));
+    var amtCls=isAdj?'green':(isPocketProfit?'purple':(isPocket?'teal':''));
+    var tagCls=isAdj?'adjustment':(isPocketProfit?'pocket-profit':(isPocket?'pocket':'paid'));
+    var tagLabel=isAdj?'Reconciled':(isPocketProfit?'Pocket (Profit)':(isPocket?'Pocket (Comm)':'Paid to Waj'));
+    var outstandingNote='';
+    if(isPocket){
+      var out=rnd(h.amount-(h.reconciled||0));
+      if(out>0.005)outstandingNote='<br><span style="font-size:10px;color:var(--rust)">Outstanding: ₨'+fmt(out)+'</span>';
+      else outstandingNote='<br><span style="font-size:10px;color:var(--green)">✓ Fully reconciled</span>';
+    }
+    return'<div class="waj-hist-item'+(cls?' '+cls:'')+'">'+
       '<span class="whi-date">'+fmtD(h.date)+'</span>'+
-      '<div class="whi-desc">'+esc(h.note||(isPocket?'Pocket advance':'Commission payment'))+(h.breakdown?'<br><span style="font-size:10px;color:var(--muted)">'+esc(h.breakdown)+'</span>':'')+(h.investorName?'<br><span style="font-size:10px;color:var(--muted)">Investor: '+esc(h.investorName)+'</span>':'')+'</div>'+
-      '<span class="whi-amt'+(isPocket?' teal':'')+'">₨ '+fmt(h.amount)+'</span>'+
-      '<span class="whi-tag'+(isPocket?' pocket':' paid')+'">'+(isPocket?'Pocket':'Paid to Waj')+'</span>'+
+      '<div class="whi-desc">'+esc(h.note||(isPocket?'Pocket advance':'Commission payment'))+(h.breakdown?'<br><span style="font-size:10px;color:var(--muted)">'+esc(h.breakdown)+'</span>':'')+(h.investorName?'<br><span style="font-size:10px;color:var(--muted)">Investor: '+esc(h.investorName)+'</span>':'')+outstandingNote+'</div>'+
+      '<span class="whi-amt'+(amtCls?' '+amtCls:'')+'">₨ '+fmt(h.amount)+'</span>'+
+      '<span class="whi-tag'+(tagCls?' '+tagCls:'')+'">'+tagLabel+'</span>'+
       '</div>';
   }).join(''):'<div class="waj-no-hist" style="color:var(--muted);padding:20px 0">No payment history yet.</div>';
   document.getElementById('wajHistBody').innerHTML=
     '<div style="padding:14px 22px 4px">'+
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:16px">'+
     '<div class="inst-s-card"><span class="inst-s-lbl">Business Paid Wajahat</span><div class="inst-s-val g">₨ '+fmt(totalPaid)+'</div></div>'+
-    '<div class="inst-s-card"><span class="inst-s-lbl">Wajahat Pocket Advances</span><div class="inst-s-val" style="color:var(--teal)">₨ '+fmt(totalPocket)+'</div></div>'+
+    '<div class="inst-s-card"><span class="inst-s-lbl">Pocket — Profit (Outstanding)</span><div class="inst-s-val" style="color:var(--purple)">₨ '+fmt(outProfit)+'</div></div>'+
+    '<div class="inst-s-card"><span class="inst-s-lbl">Pocket — Comm. (Outstanding)</span><div class="inst-s-val" style="color:var(--teal)">₨ '+fmt(outComm)+'</div></div>'+
+    '<div class="inst-s-card"><span class="inst-s-lbl">Reconciled Total</span><div class="inst-s-val g">₨ '+fmt(reconciled)+'</div></div>'+
     '</div>'+
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">'+
     '<div style="font-family:\'DM Mono\',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)">Payment Log</div>'+
+    '<div style="display:flex;gap:8px">'+
+    (hasOutstanding?'<button class="btn btn-green btn-sm" onclick="openReconcileModal()">🔄 Reconcile Pocket Advance</button>':'')+
     '<button class="btn btn-teal btn-sm" onclick="openPocketModal()">👛 Record Pocket Payment</button>'+
-    '</div>'+
+    '</div></div>'+
     '<div>'+rows+'</div>'+
     '</div>';
 }
 
 // POCKET PAYMENT MODAL
-function openPocketModal(prefillInvId){
-  var invOptions=D.map(function(inv){return'<option value="'+inv.id+'"'+(prefillInvId===inv.id?' selected':'')+'>'+esc(inv.name)+' (Rem ₨'+fmt(commRem(inv))+')</option>';}).join('');
+var pocketPayFor='profit';
+function openPocketModal(prefillInvId,payFor){
+  pocketPayFor=payFor||'profit';
+  renderPocketBody(prefillInvId);
+  document.getElementById('pocketOverlay').classList.add('open');
+}
+
+function setPocketPayFor(mode){pocketPayFor=mode;renderPocketBody(document.getElementById('pkInv')?parseInt(document.getElementById('pkInv').value)||null:null);}
+
+function renderPocketBody(prefillInvId){
+  var isProfit=pocketPayFor==='profit';
+  var invOptions=D.filter(function(inv){return !inv.closed;}).map(function(inv){
+    var remShown=isProfit?profitRem(inv):commRem(inv);
+    return'<option value="'+inv.id+'"'+(prefillInvId===inv.id?' selected':'')+'>'+esc(inv.name)+' (Rem ₨'+fmt(remShown)+')</option>';
+  }).join('');
   document.getElementById('pocketBody').innerHTML=
     '<div style="padding:4px 0 8px">'+
     '<div class="pocket-banner">'+
     '<div class="pocket-banner-title">📌 About Pocket Payments</div>'+
     '<div style="font-size:12px;color:var(--purple);line-height:1.6;margin-top:4px">'+
-    'Use this when Wajahat pays an investor\'s commission from his own pocket before receiving it from the business. '+
-    'This records the advance so it can be tracked and adjusted later when the business reimburses Wajahat.'+
+    'Use this when Wajahat pays money to an investor (or takes his own commission) from his own pocket, before the business (Shehzad) sends the funds. '+
+    'This records it as an outstanding advance so it can be reconciled later — use <strong>Reconcile Pocket Advance</strong> once Shehzad reimburses it, so it does not get paid out twice.'+
     '</div>'+
     '</div>'+
     '<div class="waj-form-block">'+
     '<div class="waj-form-title">👛 Record Pocket Payment</div>'+
+    '<div class="report-options" style="margin-bottom:12px;padding:10px 12px">'+
+    '<label class="chk-row"><input type="radio" name="pkFor" value="profit"'+(isProfit?' checked':'')+' onchange="setPocketPayFor(\'profit\')"> Paid an <strong>investor\'s profit</strong> from pocket</label>'+
+    '<label class="chk-row"><input type="radio" name="pkFor" value="commission"'+(!isProfit?' checked':'')+' onchange="setPocketPayFor(\'commission\')"> Advanced <strong>Wajahat\'s own commission</strong> from pocket</label>'+
+    '</div>'+
     '<div class="waj-form-row">'+
-    '<div class="fg"><label>Payment Amount (₨)</label><input type="number" id="pkAmt" placeholder="e.g. 15000" min="1"></div>'+
+    '<div class="fg"><label>Payment Amount (₨)</label><input type="number" id="pkAmt" placeholder="e.g. 50000" min="1"></div>'+
     '<div class="fg"><label>Payment Date</label><input type="date" id="pkDate" value="'+tod()+'"></div>'+
     '</div>'+
-    '<div class="waj-form-row1"><div class="fg"><label>Investor (optional — which investor was paid)</label>'+
-    '<select id="pkInv"><option value="">— General / Not investor-specific —</option>'+invOptions+'</select></div></div>'+
-    '<div class="waj-form-row1"><div class="fg"><label>Note</label><input type="text" id="pkNote" placeholder="e.g. Paid cash to Adnan from personal funds"></div></div>'+
+    '<div class="waj-form-row1"><div class="fg"><label>Investor'+(isProfit?' (required — who was paid)':' (optional — which investor this relates to)')+'</label>'+
+    '<select id="pkInv">'+(isProfit?'':'<option value="">— General / Not investor-specific —</option>')+invOptions+'</select></div></div>'+
+    '<div class="waj-form-row1"><div class="fg"><label>Note</label><input type="text" id="pkNote" placeholder="e.g. Paid cash to Sehrish from personal funds"></div></div>'+
     '</div>'+
     '</div>';
   document.getElementById('pocketFtr').innerHTML=
     '<button class="btn btn-ghost btn-md" onclick="closePocketModal()">Cancel</button>'+
     '<button class="btn btn-teal btn-md" onclick="execPocketPay()">✓ Record Pocket Payment</button>';
-  document.getElementById('pocketOverlay').classList.add('open');
 }
 
 function execPocketPay(){
@@ -1034,31 +1198,104 @@ function execPocketPay(){
     var date=document.getElementById('pkDate').value||tod();
     var note=document.getElementById('pkNote').value.trim();
     var invId=document.getElementById('pkInv').value;
+    var payFor=pocketPayFor;
     if(!amtRaw)return toast('⚠ Enter a payment amount.');
     var amt=parseFloat(amtRaw);
     if(isNaN(amt)||amt<=0)return toast('⚠ Enter a valid amount > 0.');
+    if(payFor==='profit'&&!invId)return toast('⚠ Select which investor this pocket payment was for.');
     var invName='';
     if(invId){
       var inv=D.find(function(i){return i.id===parseInt(invId);});
       if(inv){
         invName=inv.name;
-        var rem=commRem(inv);
-        var payAmt=Math.min(amt,rem);
-        if(payAmt>0){
-          inv.commInstallments.push({id:nextId(),date:date,amount:payAmt,note:'[Pocket by Wajahat] '+(note||'')});
-          inv.commPaid=rnd(inv.commInstallments.reduce(function(s,i){return s+i.amount;},0));
+        if(payFor==='profit'){
+          var remP=profitRem(inv);
+          var payAmtP=Math.min(amt,remP>0?remP:amt);
+          if(payAmtP>0){
+            inv.profitInstallments.push({id:nextId(),date:date,amount:payAmtP,note:'[Pocket by Wajahat] '+(note||'')});
+            inv.profitPaid=rnd(inv.profitInstallments.reduce(function(s,i){return s+i.amount;},0));
+          }
+        }else{
+          var remC=commRem(inv);
+          var payAmtC=Math.min(amt,remC);
+          if(payAmtC>0){
+            inv.commInstallments.push({id:nextId(),date:date,amount:payAmtC,note:'[Pocket by Wajahat] '+(note||'')});
+            inv.commPaid=rnd(inv.commInstallments.reduce(function(s,i){return s+i.amount;},0));
+          }
         }
       }
     }
-    wajHistory.push({id:nextId(),date:date,amount:amt,note:note||'Pocket advance',type:'pocket',investorId:invId?parseInt(invId):null,investorName:invName||null});
+    wajHistory.push({id:nextId(),date:date,amount:amt,note:note||'Pocket advance',type:'pocket',payFor:payFor,reconciled:0,investorId:invId?parseInt(invId):null,investorName:invName||null});
     save();render();closePocketModal();
     if(document.getElementById('wajHistOverlay').classList.contains('open'))renderWajHistBody();
-    toast('✓ Pocket payment ₨'+fmt(amt)+' recorded'+(invName?' for '+invName:'')+'.');
+    toast('✓ Pocket payment ₨'+fmt(amt)+' recorded'+(invName?' for '+invName:'')+'. Reconcile it later once the business reimburses Wajahat.');
   }catch(e){toast('⚠ '+e.message);console.error(e);}
 }
 
 function closePocketModal(){document.getElementById('pocketOverlay').classList.remove('open');}
 function pocketBgClick(e){if(e.target===document.getElementById('pocketOverlay'))closePocketModal();}
+
+// RECONCILE / ADJUST POCKET ADVANCE — when the business later reimburses a pocket payment
+function openReconcileModal(prefillId){
+  var outstanding=wajHistory.filter(function(h){return h.type==='pocket'&&(h.amount-(h.reconciled||0))>0.005;});
+  if(!outstanding.length){toast('⚠ No outstanding pocket advances to reconcile.');return;}
+  document.getElementById('pocketBody').innerHTML=
+    '<div style="padding:4px 0 8px">'+
+    '<div class="pocket-banner">'+
+    '<div class="pocket-banner-title">🔄 Reconcile Pocket Advance</div>'+
+    '<div style="font-size:12px;color:var(--purple);line-height:1.6;margin-top:4px">'+
+    'When Shehzad sends the profit/commission that Wajahat had already advanced from his own pocket, mark it reconciled here. '+
+    'This clears the outstanding advance without recording a duplicate payment to the investor.'+
+    '</div></div>'+
+    '<div class="waj-form-block">'+
+    '<div class="waj-form-title">Select Advance to Reconcile</div>'+
+    '<div class="waj-form-row1"><div class="fg"><label>Outstanding Pocket Advance</label><select id="rcRef" onchange="liveRcMax()">'+
+    outstanding.map(function(h){
+      var out=rnd(h.amount-(h.reconciled||0));
+      var label=(h.payFor==='profit'?'Profit — ':'Commission — ')+(h.investorName||'General')+' · Outstanding ₨'+fmt(out)+' ('+fmtD(h.date)+')';
+      return'<option value="'+h.id+'"'+(prefillId===h.id?' selected':'')+'>'+esc(label)+'</option>';
+    }).join('')+
+    '</select></div></div>'+
+    '<div class="waj-form-row">'+
+    '<div class="fg"><label>Reconciled Amount (₨)</label><input type="number" id="rcAmt" min="1"></div>'+
+    '<div class="fg"><label>Reconciled Date</label><input type="date" id="rcDate" value="'+tod()+'"></div>'+
+    '</div>'+
+    '<div class="waj-form-row1"><div class="fg"><label>Note</label><input type="text" id="rcNote" placeholder="e.g. Shehzad sent profit for Sehrish, adjusting pocket advance"></div></div>'+
+    '</div>'+
+    '</div>';
+  document.getElementById('pocketFtr').innerHTML=
+    '<button class="btn btn-ghost btn-md" onclick="closePocketModal()">Cancel</button>'+
+    '<button class="btn btn-green btn-md" onclick="execReconcile()">✓ Mark Reconciled</button>';
+  document.getElementById('pocketOverlay').classList.add('open');
+  setTimeout(liveRcMax,0);
+}
+function liveRcMax(){
+  var sel=document.getElementById('rcRef');if(!sel)return;
+  var h=wajHistory.find(function(x){return x.id===parseInt(sel.value);});if(!h)return;
+  var out=rnd(h.amount-(h.reconciled||0));
+  var amtEl=document.getElementById('rcAmt');
+  if(amtEl){amtEl.max=out;amtEl.placeholder='Up to ₨'+fmt(out);if(!amtEl.value)amtEl.value=out;}
+}
+function execReconcile(){
+  try{
+    var refId=parseInt(document.getElementById('rcRef').value);
+    var h=wajHistory.find(function(x){return x.id===refId;});
+    if(!h)return toast('⚠ Advance not found.');
+    var amtRaw=document.getElementById('rcAmt').value.trim();
+    var date=document.getElementById('rcDate').value||tod();
+    var note=document.getElementById('rcNote').value.trim();
+    if(!amtRaw)return toast('⚠ Enter reconciled amount.');
+    var amt=parseFloat(amtRaw);
+    var out=rnd(h.amount-(h.reconciled||0));
+    if(isNaN(amt)||amt<=0)return toast('⚠ Enter a valid amount > 0.');
+    if(amt>out+0.005)return toast('⚠ Amount exceeds outstanding advance of ₨'+fmt(out)+'.');
+    h.reconciled=rnd((h.reconciled||0)+amt);
+    wajHistory.push({id:nextId(),date:date,amount:amt,note:note||('Reconciled '+(h.payFor==='profit'?'profit':'commission')+' pocket advance'+(h.investorName?' for '+h.investorName:'')),type:'adjustment',payFor:h.payFor,pocketRefId:h.id,investorId:h.investorId||null,investorName:h.investorName||null});
+    save();render();closePocketModal();
+    if(document.getElementById('wajHistOverlay').classList.contains('open'))renderWajHistBody();
+    toast('✓ ₨'+fmt(amt)+' reconciled against pocket advance.');
+  }catch(e){toast('⚠ '+e.message);console.error(e);}
+}
 
 // INVESTOR PAYMENT HISTORY MODAL
 var histTabMode='all';
@@ -1109,27 +1346,32 @@ function renderPayHistBody(id,mode){
   }
   var allPayments=[];
   inv.history.forEach(function(h){
-    if(h.profitInstallments){h.profitInstallments.forEach(function(i){allPayments.push({type:'profit',cycleNum:h.cycle,date:i.date,amount:i.amount,note:i.note,lateDays:i.lateDays});});}
+    if(h.profitInstallments){h.profitInstallments.forEach(function(i){allPayments.push({type:'profit',cycleNum:h.cycle,date:i.date,amount:i.amount,note:i.note,lateDays:i.lateDays,waived:i.waived});});}
     if(h.commInstallments){h.commInstallments.forEach(function(i){allPayments.push({type:'comm',cycleNum:h.cycle,date:i.date,amount:i.amount,note:i.note});});}
   });
-  inv.profitInstallments.forEach(function(i){allPayments.push({type:'profit',cycleNum:inv.cycle,date:i.date,amount:i.amount,note:i.note,lateDays:i.lateDays});});
+  inv.profitInstallments.forEach(function(i){allPayments.push({type:'profit',cycleNum:inv.cycle,date:i.date,amount:i.amount,note:i.note,lateDays:i.lateDays,waived:i.waived});});
   inv.commInstallments.forEach(function(i){allPayments.push({type:'comm',cycleNum:inv.cycle,date:i.date,amount:i.amount,note:i.note});});
+  (inv.withdrawalInstallments||[]).forEach(function(i){allPayments.push({type:'withdraw',cycleNum:inv.cycle,date:i.date,amount:i.amount,note:i.note});});
   if(mode==='profit')allPayments=allPayments.filter(function(p){return p.type==='profit';});
   if(mode==='comm')allPayments=allPayments.filter(function(p){return p.type==='comm';});
   allPayments.sort(function(a,b){return b.date.localeCompare(a.date);});
   if(!allPayments.length){body.innerHTML='<div class="ph-empty">No payments found.</div>';return;}
   var totProfit=allPayments.filter(function(p){return p.type==='profit';}).reduce(function(s,p){return s+p.amount;},0);
   var totComm=allPayments.filter(function(p){return p.type==='comm';}).reduce(function(s,p){return s+p.amount;},0);
+  var totWithdraw=allPayments.filter(function(p){return p.type==='withdraw';}).reduce(function(s,p){return s+p.amount;},0);
   var html='<div style="padding:14px 22px">';
   if(mode==='all'||mode==='profit')html+='<div class="ph-summary-row profit"><span>Total Profit Paid (all cycles)</span><strong>₨ '+fmt(totProfit)+'</strong></div>';
   if(mode==='all'||mode==='comm')html+='<div class="ph-summary-row comm"><span>Total Commission Paid (all cycles)</span><strong>₨ '+fmt(totComm)+'</strong></div>';
+  if(mode==='all'&&totWithdraw>0)html+='<div class="ph-summary-row" style="background:var(--blue-lt)"><span>Total Principal Returned (withdrawal)</span><strong>₨ '+fmt(totWithdraw)+'</strong></div>';
   html+='<div style="margin-top:12px">';
   allPayments.forEach(function(p){
     var isPocket=p.note&&p.note.indexOf('[Pocket by Wajahat]')===0;
-    var entryClass=isPocket?'pocket-entry':(p.type==='profit'?'profit-entry':'comm-entry');
-    var tagClass=isPocket?'pocket':(p.type==='profit'?'profit':'comm');
-    var tagLabel=isPocket?'Pocket':(p.type==='profit'?'Profit':'Comm');
-    var amtClass=isPocket?'purple':(p.type==='profit'?'green':'amber');
+    var isWaived=p.waived||(p.note&&p.note.indexOf('[Waived]')===0);
+    var isWithdraw=p.type==='withdraw';
+    var entryClass=isWithdraw?'withdraw-entry':(isWaived?'waived-entry':(isPocket?'pocket-entry':(p.type==='profit'?'profit-entry':'comm-entry')));
+    var tagClass=isWithdraw?'withdraw':(isWaived?'waived':(isPocket?'pocket':(p.type==='profit'?'profit':'comm')));
+    var tagLabel=isWithdraw?'Principal':(isWaived?'Waived':(isPocket?'Pocket':(p.type==='profit'?'Profit':'Comm')));
+    var amtClass=isWithdraw?'blue':(isWaived?'rust':(isPocket?'purple':(p.type==='profit'?'green':'amber')));
     html+='<div class="ph-entry '+entryClass+'">'+
       '<span class="ph-date">'+fmtD(p.date)+'</span>'+
       '<span class="ph-desc"><span style="font-size:10px;color:var(--muted)">C'+p.cycleNum+'</span> '+esc(p.note||'Payment')+(p.lateDays>0?' <span style="color:var(--rust);font-size:10px">('+p.lateDays+'d late)</span>':'')+'</span>'+
@@ -1151,13 +1393,15 @@ function openModal(id){
       if(!inv.profitInstallments.length)return'<div class="no-inst">No payments recorded yet</div>';
       return inv.profitInstallments.map(function(i){
         var isPocket=i.note&&i.note.indexOf('[Pocket by Wajahat]')===0;
+        var isWaived=i.waived||(i.note&&i.note.indexOf('[Waived]')===0);
         var lateTag=i.lateDays>0?(' <span style="color:var(--rust);font-size:10px;font-weight:600">('+i.lateDays+'d late)</span>'):'';
         var pocketTag=isPocket?'<span class="ii-pocket">Pocket</span>':'';
+        var waivedTag=isWaived?'<span class="ii-waived">Waived</span>':'';
         return'<div class="inst-item" id="pi_row_'+i.id+'">'+
           '<span class="ii-date">'+i.date+'</span>'+
           '<span class="ii-note">'+esc(i.note||'—')+'</span>'+
           '<span class="ii-amt">₨ '+fmt(i.amount)+lateTag+'</span>'+
-          pocketTag+
+          pocketTag+waivedTag+
           '<button class="ii-edit" onclick="toggleInstEdit('+inv.id+','+i.id+',\'profit\')">✏</button>'+
           '<button class="ii-del" onclick="delProfitInst('+inv.id+','+i.id+')">✕</button>'+
           '</div>'+
@@ -1192,6 +1436,58 @@ function openModal(id){
           '</div>';
       }).join('');
     }
+    function wiLog(){
+      if(!inv.withdrawalInstallments||!inv.withdrawalInstallments.length)return'<div class="no-inst">No principal returned yet</div>';
+      return inv.withdrawalInstallments.map(function(i){
+        return'<div class="inst-item" id="wi_row_'+i.id+'">'+
+          '<span class="ii-date">'+i.date+'</span>'+
+          '<span class="ii-note">'+esc(i.note||'—')+'</span>'+
+          '<span class="ii-amt" style="color:var(--blue)">₨ '+fmt(i.amount)+'</span>'+
+          '<span></span>'+
+          '<span></span>'+
+          '<button class="ii-del" onclick="delWithdrawalInst('+inv.id+','+i.id+')">✕</button>'+
+          '</div>';
+      }).join('');
+    }
+    function withdrawSection(){
+      var wRem=withdrawRem(inv),wPct=withdrawPct(inv),wPaidAmt=inv.withdrawnAmount||0;
+      if(!inv.withdrawn&&!inv.closed){
+        return '<div class="inst-section">'+
+          '<div class="inst-head"><span>💼 Principal Withdrawal</span></div>'+
+          '<div style="background:var(--blue-lt);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--blue);line-height:1.5;margin-bottom:10px">'+
+          'If this investor wants to withdraw their capital, start withdrawal below. Their principal (₨'+fmt(inv.amount)+') will then be returned in chunks and the investor will be closed once fully returned.'+
+          '</div>'+
+          '<div class="inst-form-actions"><button class="btn btn-blue btn-sm" onclick="startWithdrawal('+inv.id+')">💼 Start Withdrawal</button></div>'+
+          '</div>';
+      }
+      if(inv.closed){
+        return '<div class="inst-section">'+
+          '<div class="inst-head"><span>💼 Principal Withdrawal</span><span style="color:var(--blue)">₨ '+fmt(inv.amount)+' total</span></div>'+
+          '<div class="fully-paid-msg" style="background:var(--blue-lt);color:var(--blue)">✓ Fully withdrawn &amp; closed on '+fmtD(inv.closedDate)+'</div>'+
+          '<div class="inst-log">'+wiLog()+'</div>'+
+          '<div class="inst-form-actions"><button class="btn btn-ghost btn-sm" onclick="reopenInvestor('+inv.id+')">↺ Reopen (undo close)</button></div>'+
+          '</div>';
+      }
+      return '<div class="inst-section">'+
+        '<div class="inst-head"><span>💼 Principal Withdrawal</span><span style="color:var(--blue)">₨ '+fmt(inv.amount)+' total</span></div>'+
+        '<div class="inst-summary">'+
+        '<div class="inst-s-card"><span class="inst-s-lbl">Principal</span><div class="inst-s-val cy">₨ '+fmt(inv.amount)+'</div></div>'+
+        '<div class="inst-s-card"><span class="inst-s-lbl">Returned</span><div class="inst-s-val" style="color:var(--blue)">₨ '+fmt(wPaidAmt)+'</div></div>'+
+        '<div class="inst-s-card"><span class="inst-s-lbl">Remaining</span><div class="inst-s-val '+(wRem>0?'a':'g')+'">₨ '+fmt(wRem)+'</div></div>'+
+        '</div>'+
+        '<div class="inst-form">'+
+        '<div class="inst-form-title">Record Principal Repayment Chunk</div>'+
+        (wRem<=0?'<div style="background:var(--green-lt);border:1px solid #a8d8bc;border-radius:var(--r);padding:7px 12px;margin-bottom:10px;font-size:12px;color:var(--green);font-weight:600">✓ Fully returned</div>':'')+
+        '<div class="inst-form-row">'+
+        '<div class="fg"><label>Chunk Amount (₨)</label><input type="number" id="wi_amt_'+inv.id+'" placeholder="Amount returned now" min="0.01" max="'+wRem+'" step="any"></div>'+
+        '<div class="fg"><label>Date</label><input type="date" id="wi_date_'+inv.id+'" value="'+tod()+'"></div>'+
+        '</div>'+
+        '<div class="fg" style="margin-bottom:10px"><label>Note</label><input type="text" id="wi_note_'+inv.id+'" placeholder="e.g. First chunk via bank transfer"></div>'+
+        '<div class="inst-form-actions"><button class="btn btn-blue btn-sm" onclick="addWithdrawalInst('+inv.id+')">✓ Record Repayment</button></div>'+
+        '</div>'+
+        '<div class="inst-log">'+wiLog()+'</div>'+
+        '</div>';
+    }
     var histHTML='';
     if(inv.history.length){
       histHTML='<div class="hist-lbl">Completed Cycles History</div>'+inv.history.map(function(h){return'<div class="m-row"><span class="m-lbl">Cycle '+h.cycle+' · Rolled '+h.rolledDate+'</span><span class="m-val" style="font-size:12px">Profit <span class="cg">₨'+fmt(h.profitPaid)+'</span>/<span class="cm">₨'+fmt(h.profit)+'</span> · Comm <span class="ca">₨'+fmt(h.commPaid)+'</span>/<span class="cm">₨'+fmt(h.commission)+'</span></span></div>';}).join('');
@@ -1210,7 +1506,27 @@ function openModal(id){
       '<div class="fg"><label>Adjusted Total Profit (₨) <span style="font-weight:normal;color:var(--amber)">— enter new total if rate changed</span></label><input type="number" id="pi_adj_'+inv.id+'" placeholder="Leave blank to keep ₨'+fmt(inv.profit)+'" min="0" step="any" oninput="liveUpdateRem('+inv.id+')"></div>'+
       '<div class="fg"><label>&nbsp;</label><div class="rem-info" id="rem_info_'+inv.id+'"><strong>Rate:</strong> '+inv.ipct+'%<br><strong>Total:</strong> ₨'+fmt(inv.profit)+'<br><strong>Remaining:</strong> <span id="rem_live_'+inv.id+'">₨'+fmt(pr)+'</span></div></div>'+
       '</div>'+
-      '<div class="inst-form-actions"><button class="btn btn-green btn-sm" onclick="addProfitInst('+inv.id+')">✓ Record Payment</button></div>'+
+      '<div class="inst-form-actions" style="justify-content:space-between">'+
+      '<div style="display:flex;gap:8px">'+
+      '<button class="btn btn-teal btn-sm" onclick="openPocketModal('+inv.id+',\'profit\')">👛 Pocket Pay</button>'+
+      (pr>0?'<button class="btn btn-ghost btn-sm" style="color:var(--rust);border-color:var(--rust)" onclick="toggleWaiveForm('+inv.id+')">🕊 Waive Profit</button>':'')+
+      '</div>'+
+      '<button class="btn btn-green btn-sm" onclick="addProfitInst('+inv.id+')">✓ Record Payment</button>'+
+      '</div>'+
+      '<div class="inst-item-edit" id="waive_form_'+inv.id+'" style="grid-template-columns:1fr">'+
+      '<div style="background:var(--rust-lt);border-radius:var(--r);padding:10px 12px;margin-top:8px">'+
+      '<div style="font-size:11px;color:var(--rust);font-weight:600;margin-bottom:8px">🕊 Waive Remaining Profit — forgives this amount, no cash changes hands</div>'+
+      '<div class="inst-form-row" style="margin-bottom:8px">'+
+      '<div class="fg"><label>Amount to Waive (₨)</label><input type="number" id="wv_amt_'+inv.id+'" value="'+pr+'" min="0.01" max="'+pr+'" step="any"></div>'+
+      '<div class="fg"><label>Date</label><input type="date" id="wv_date_'+inv.id+'" value="'+tod()+'"></div>'+
+      '</div>'+
+      '<div class="fg" style="margin-bottom:8px"><label>Reason (optional)</label><input type="text" id="wv_note_'+inv.id+'" placeholder="e.g. Goodwill waiver for this cycle"></div>'+
+      '<div style="display:flex;gap:8px;justify-content:flex-end">'+
+      '<button class="ii-cancel-edit" style="width:auto;padding:0 12px" onclick="toggleWaiveForm('+inv.id+')">Cancel</button>'+
+      '<button class="btn btn-red btn-sm" onclick="execWaiveProfit('+inv.id+')">✓ Confirm Waiver</button>'+
+      '</div>'+
+      '</div>'+
+      '</div>'+
       '</div>';
     var commForm=
       '<div class="inst-form">'+
@@ -1222,7 +1538,7 @@ function openModal(id){
       '</div>'+
       '<div style="background:var(--amber-lt);border-radius:var(--r);padding:8px 12px;font-size:12px;color:var(--gold-dk);margin-bottom:10px"><strong>Rate:</strong> '+inv.wpct+'% &nbsp;·&nbsp; <strong>Total:</strong> ₨'+fmt(inv.commission)+' &nbsp;·&nbsp; <strong>Remaining:</strong> ₨'+fmt(cr)+'</div>'+
       '<div class="inst-form-actions" style="justify-content:space-between">'+
-      '<button class="btn btn-teal btn-sm" onclick="openPocketModal('+inv.id+')">👛 Pocket Pay</button>'+
+      '<button class="btn btn-teal btn-sm" onclick="openPocketModal('+inv.id+',\'commission\')">👛 Pocket Pay</button>'+
       '<button class="btn btn-amber btn-sm" onclick="addCommInst('+inv.id+')">✓ Record Commission</button>'+
       '</div>'+
       '</div>';
@@ -1250,12 +1566,14 @@ function openModal(id){
       '<div class="inst-s-card"><span class="inst-s-lbl">Remaining</span><div class="inst-s-val '+(cr>0?'a':'g')+'">₨ '+fmt(cr)+'</div></div>'+
       '</div>'+commForm+
       '<div class="inst-log">'+ciLog()+'</div>'+
-      '</div>'+histHTML;
+      '</div>'+
+      withdrawSection()+
+      histHTML;
     document.getElementById('mFtr').innerHTML=
       '<button class="btn btn-ghost btn-md" onclick="closeModal()">Close</button>'+
       '<button class="btn btn-teal btn-sm" onclick="openPayHistModal('+inv.id+')">📋 Full History</button>'+
       '<button class="btn btn-red btn-sm" onclick="delRec('+inv.id+')">Delete</button>'+
-      '<button class="btn btn-green btn-md" onclick="rollCycle('+inv.id+')">↻ Roll Cycle</button>';
+      (inv.closed?'':'<button class="btn btn-green btn-md" onclick="rollCycle('+inv.id+')">↻ Roll Cycle</button>');
     document.getElementById('overlay').classList.add('open');
   }catch(e){toast('⚠ Error: '+e.message);console.error(e);}
 }
@@ -1387,12 +1705,14 @@ function render(){
     if(filter==='partial')rows=D.filter(function(i){return cycleStatus(i)==='partial';});
     if(filter==='paid')rows=D.filter(function(i){return cycleStatus(i)==='paid';});
     if(filter==='overdue')rows=D.filter(function(i){return cycleStatus(i)==='overdue';});
+    if(filter==='withdrawing')rows=D.filter(function(i){return i.withdrawn&&!i.closed;});
+    if(filter==='closed')rows=D.filter(function(i){return i.closed;});
     set('rowCount',rows.length);
     var tb=document.getElementById('tBody');
     if(!rows.length){tb.innerHTML='<tr><td colspan="16"><div class="empty"><div class="ei">📋</div><p>No records for this filter.</p></div></td></tr>';return;}
     tb.innerHTML=rows.map(function(inv,idx){
       var od=overdueDays(inv),pr=profitRem(inv),cr=commRem(inv),pp=profitPct(inv);
-      return'<tr>'+
+      return'<tr'+(inv.closed?' class="row-closed"':'')+'>'+
         '<td class="cn cm">'+(idx+1)+'</td>'+
         '<td class="cb">'+esc(inv.name)+'</td>'+
         '<td class="cn cg">₨ '+fmt(inv.amount)+'</td>'+
@@ -1411,14 +1731,14 @@ function render(){
         '<td><div class="acts"><button class="btn btn-blue btn-sm" onclick="openModal('+inv.id+')">💳 Pay</button><button class="btn btn-teal btn-sm" onclick="openPayHistModal('+inv.id+')">📋</button><button class="btn btn-ghost btn-sm" onclick="openEditModal('+inv.id+')">✏</button></div></td>'+
         '</tr>';
     }).join('');
-    var cap=D.reduce(function(s,i){return s+i.amount;},0);
+    var cap=D.filter(function(i){return !i.closed;}).reduce(function(s,i){return s+i.amount;},0);
     var prRem=D.reduce(function(s,i){return s+profitRem(i);},0);
     var odCnt=D.filter(function(i){return cycleStatus(i)==='overdue';}).length;
     var wTot=D.reduce(function(s,i){return s+i.commission+i.history.reduce(function(h,r){return h+r.commission;},0);},0);
     var wPd=totalWajPaid();
     var wRem=D.reduce(function(s,i){return s+commRem(i);},0);
     var wPock=totalPocketAdvances();
-    var act=D.filter(function(i){return cycleStatus(i)!=='paid';}).length;
+    var act=D.filter(function(i){return !i.closed&&cycleStatus(i)!=='paid';}).length;
     set('sTotal',D.length);set('sCapital','₨ '+fmt(cap));set('sProfit','₨ '+fmt(prRem));set('sOverdue',odCnt);
     set('wTotal','₨ '+fmt(wTot));set('wPaid','₨ '+fmt(wPd));set('wPending','₨ '+fmt(wRem));set('wPocket','₨ '+fmt(wPock));set('wCycles',act);
   }catch(e){console.error('render:',e);}
@@ -1430,8 +1750,8 @@ function setF(f,el){filter=f;document.querySelectorAll('.tab').forEach(function(
 // EXPORT
 // ════════════════════════════════════════════════════════════════
 function exportCSV(){
-  var h=['#','Name','Amount','Start','Due','Overdue Days','Inv%','Profit','Profit Paid','Profit Rem','Waj%','Comm','Comm Paid','Comm Rem','Cycle','Status'];
-  var r=D.map(function(inv,i){return[i+1,inv.name,inv.amount,inv.startDate,inv.dueDate,overdueDays(inv),inv.ipct+'%',inv.profit,inv.profitPaid,profitRem(inv),inv.wpct+'%',inv.commission,inv.commPaid,commRem(inv),'C'+inv.cycle,cycleStatus(inv)];});
+  var h=['#','Name','Amount','Start','Due','Overdue Days','Inv%','Profit','Profit Paid','Profit Rem','Waj%','Comm','Comm Paid','Comm Rem','Cycle','Status','Withdrawn','Principal Returned','Closed'];
+  var r=D.map(function(inv,i){return[i+1,inv.name,inv.amount,inv.startDate,inv.dueDate,overdueDays(inv),inv.ipct+'%',inv.profit,inv.profitPaid,profitRem(inv),inv.wpct+'%',inv.commission,inv.commPaid,commRem(inv),'C'+inv.cycle,cycleStatus(inv),inv.withdrawn?'Yes':'No',inv.withdrawnAmount||0,inv.closed?'Yes':'No'];});
   var csv=[h].concat(r).map(function(x){return x.map(function(c){return'"'+String(c||'').replace(/"/g,'""')+'"';}).join(',');}).join('\n');
   var a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([csv],{type:'text/csv'})),download:'TechnoHub_'+tod()+'.csv'});a.click();
   toast('✓ CSV exported.');
@@ -1455,7 +1775,9 @@ function exportJSON(){
         profit:inv.profit,profitPaid:inv.profitPaid,profitRemaining:profitRem(inv),
         commission:inv.commission,commissionPaid:inv.commPaid,commissionRemaining:commRem(inv),
         cycle:inv.cycle,status:cycleStatus(inv),
-        profitPayments:inv.profitInstallments,commissionPayments:inv.commInstallments
+        profitPayments:inv.profitInstallments,commissionPayments:inv.commInstallments,
+        withdrawn:!!inv.withdrawn,withdrawnAmount:inv.withdrawnAmount||0,withdrawalPayments:inv.withdrawalInstallments||[],
+        closed:!!inv.closed,closedDate:inv.closedDate||null
       };
     }),
     wajHistory:wajHistory
@@ -1475,6 +1797,25 @@ function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.c
 // PDF REPORT GENERATION
 // ════════════════════════════════════════════════════════════════
 var selectedReportType='summary';
+var PDF_COLUMN_DEFS=[
+  {key:'amount',header:'Amount (Rs.)',width:22},
+  {key:'start',header:'Start Date',width:18},
+  {key:'due',header:'Due Date',width:18},
+  {key:'od',header:'O/D Days',width:14},
+  {key:'ipct',header:'Profit %',width:13},
+  {key:'profit',header:'Profit Total',width:22},
+  {key:'ppaid',header:'Profit Paid',width:22},
+  {key:'prem',header:'Profit Rem.',width:22},
+  {key:'wpct',header:'Comm %',width:13},
+  {key:'comm',header:'Comm Total',width:22},
+  {key:'cpaid',header:'Comm Paid',width:20},
+  {key:'crem',header:'Comm Rem.',width:20},
+  {key:'cycle',header:'Cycle',width:12},
+  {key:'status',header:'Status',width:18}
+];
+function toggleAllPdfCols(state){
+  PDF_COLUMN_DEFS.forEach(function(c){var el=document.getElementById('col_'+c.key);if(el)el.checked=state;});
+}
 
 function openPdfModal(){
   selectedReportType='summary';
@@ -1530,6 +1871,17 @@ function renderPdfModalBody(){
     '<div class="date-filter-row">'+
     '<div class="fg"><label>Filter from date (optional)</label><input type="date" id="pdf_from" value="'+firstDate+'"></div>'+
     '<div class="fg"><label>Filter to date (optional)</label><input type="date" id="pdf_to" value="'+today+'"></div>'+
+    '</div>'+
+    '</div>'+
+    '<div class="report-options">'+
+    '<div class="report-options-title" style="display:flex;justify-content:space-between;align-items:center">'+
+    '<span>Select Table Columns <span style="font-weight:normal;color:var(--muted);text-transform:none;letter-spacing:0">(Investor &amp; # are always included)</span></span>'+
+    '<span style="display:flex;gap:6px">'+
+    '<button type="button" class="btn btn-ghost btn-sm" onclick="toggleAllPdfCols(true)">All</button>'+
+    '<button type="button" class="btn btn-ghost btn-sm" onclick="toggleAllPdfCols(false)">None</button>'+
+    '</span></div>'+
+    '<div class="col-select-grid">'+
+    PDF_COLUMN_DEFS.map(function(c){return'<label class="chk-row"><input type="checkbox" id="col_'+c.key+'" checked> '+esc(c.header)+'</label>';}).join('')+
     '</div>'+
     '</div>'+
     '<div style="background:var(--blue-lt);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--blue)">'+
@@ -1629,24 +1981,11 @@ function generatePDF(){
       doc.text(sectionTitle,margin,y);
       y+=6;
 
-      var cols=[
-        {header:'#',dataKey:'num'},
-        {header:'Investor',dataKey:'name'},
-        {header:'Amount (Rs.)',dataKey:'amount'},
-        {header:'Start Date',dataKey:'start'},
-        {header:'Due Date',dataKey:'due'},
-        {header:'O/D Days',dataKey:'od'},
-        {header:'Profit %',dataKey:'ipct'},
-        {header:'Profit Total',dataKey:'profit'},
-        {header:'Profit Paid',dataKey:'ppaid'},
-        {header:'Profit Rem.',dataKey:'prem'},
-        {header:'Comm %',dataKey:'wpct'},
-        {header:'Comm Total',dataKey:'comm'},
-        {header:'Comm Paid',dataKey:'cpaid'},
-        {header:'Comm Rem.',dataKey:'crem'},
-        {header:'Cycle',dataKey:'cycle'},
-        {header:'Status',dataKey:'status'},
-      ];
+      var activeDefs=PDF_COLUMN_DEFS.filter(function(c){var el=document.getElementById('col_'+c.key);return el?el.checked:true;});
+      if(!activeDefs.length)activeDefs=PDF_COLUMN_DEFS; // safety net — never render a table with no data columns
+      var cols=[{header:'#',dataKey:'num'},{header:'Investor',dataKey:'name'}].concat(
+        activeDefs.map(function(c){return{header:c.header,dataKey:c.key};})
+      );
 
       var rows=tableData.map(function(inv,i){
         return{
@@ -2103,7 +2442,8 @@ function buildInvestor(r){
     profit:rnd(r.amount*r.ipct/100),commission:rnd(r.amount*r.wpct/100),
     profitPaid:0,commPaid:0,
     profitInstallments:[],commInstallments:[],pocketPayments:[],
-    cycle:1,history:[]
+    cycle:1,history:[],
+    withdrawn:false,withdrawalInstallments:[],withdrawnAmount:0,closed:false,closedDate:null
   };
 }
 
