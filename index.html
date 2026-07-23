@@ -41,7 +41,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
 .sec-row h2{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--ink)}
 .sec-bar{width:24px;height:3px;background:var(--gold);border-radius:2px;flex-shrink:0}
 .push{margin-left:auto;display:flex;gap:8px}
-.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.stats-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
 .s-card{background:var(--ink);border-radius:var(--rl);padding:18px 20px;position:relative;overflow:hidden}
 .s-card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--gold)}
 .s-lbl{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:8px}
@@ -93,7 +93,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
 .tab:not(.on):hover{border-color:var(--gold);color:var(--gold-dk)}
 .t-info{margin-left:auto;font-size:12px;color:var(--muted)}
 .t-scroll{overflow-x:auto}
-.tbl{width:100%;border-collapse:collapse;min-width:1120px}
+.tbl{width:100%;border-collapse:collapse;min-width:1240px}
 .tbl thead tr{background:var(--ink)}
 .tbl thead th{padding:10px 11px;text-align:left;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.11em;text-transform:uppercase;color:var(--gold);font-weight:400;white-space:nowrap}
 .tbl tbody tr{border-bottom:1px solid var(--surface);transition:background .12s}
@@ -143,6 +143,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
 .inst-section{background:var(--surface);border-radius:var(--rm);padding:16px;margin:12px 0}
 .inst-head{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--gold-dk);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
 .inst-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.inst-summary-4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
 .inst-s-card{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;text-align:center}
 .inst-s-lbl{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:3px}
 .inst-s-val{font-family:'Playfair Display',serif;font-size:15px;font-weight:700}
@@ -346,6 +347,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
 /* RESPONSIVE */
 @media(max-width:1200px){.waj-grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:1024px){.waj-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:1200px){.stats-grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:900px){.stats-grid{grid-template-columns:repeat(2,1fr)}.waj-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:768px){.f-row3{grid-template-columns:1fr 1fr}.pct-cols{grid-template-columns:1fr 1fr}.page{padding:16px 14px 40px}.modal{width:calc(100vw - 32px);margin:auto}.report-type-grid{grid-template-columns:1fr}}
 @media(max-width:540px){.f-row3{grid-template-columns:1fr}.pct-cols{grid-template-columns:1fr}.prev-bar{grid-template-columns:1fr}.waj-grid{grid-template-columns:1fr 1fr}.hdr-date{display:none}.inst-form-row{grid-template-columns:1fr}.waj-form-row{grid-template-columns:1fr}.alloc-row{grid-template-columns:1fr auto auto}.inst-summary{grid-template-columns:repeat(3,1fr)}.overlay{padding:12px 8px}.date-filter-row{grid-template-columns:1fr}}
@@ -373,6 +375,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
     <div class="s-card"><div class="s-lbl">Total Investors</div><div class="s-val" id="sTotal">0</div><div class="s-hint">Active records</div></div>
     <div class="s-card"><div class="s-lbl">Total Capital</div><div class="s-val" id="sCapital">₨ 0</div><div class="s-hint">Deployed funds</div></div>
     <div class="s-card"><div class="s-lbl">Profit Remaining</div><div class="s-val" id="sProfit">₨ 0</div><div class="s-hint">Unpaid balance</div></div>
+    <div class="s-card"><div class="s-lbl">Actual Profit Paid</div><div class="s-val" id="sProfitPaidActual" style="color:#4dbe84">₨ 0</div><div class="s-hint">Excl. pocket pay</div></div>
     <div class="s-card"><div class="s-lbl">Overdue</div><div class="s-val" id="sOverdue" style="color:#e8534a">0</div><div class="s-hint">Past due date</div></div>
   </div>
 
@@ -444,7 +447,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--paper);color:var(--ink);m
       <table class="tbl">
         <thead><tr>
           <th>#</th><th>Investor</th><th>Amount</th><th>Start</th><th>Due Date</th><th>Overdue</th>
-          <th>Profit Total</th><th>Profit Paid</th><th>Profit Rem.</th><th>Progress</th>
+          <th>Profit Total</th><th>Profit Paid</th><th>Profit Paid (Actual)</th><th>Profit Rem.</th><th>Progress</th>
           <th>Comm. Total</th><th>Comm. Paid</th><th>Comm. Rem.</th><th>Cycle</th><th>Status</th><th>Actions</th>
         </tr></thead>
         <tbody id="tBody"></tbody>
@@ -760,6 +763,8 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 function nextId(){return instIdCtr++;}
 
 // BUSINESS LOGIC
+function profitPaidNonPocket(inv){return rnd((inv.profitInstallments||[]).filter(function(i){return!(i.note&&i.note.indexOf('[Pocket by Wajahat]')===0);}).reduce(function(s,i){return s+i.amount;},0));}
+function profitPaidPocket(inv){return rnd(Math.max(0,inv.profitPaid-profitPaidNonPocket(inv)));}
 function profitRem(inv){return Math.max(0,rnd(inv.profit-inv.profitPaid));}
 function commRem(inv){return Math.max(0,rnd(inv.commission-inv.commPaid));}
 function profitPct(inv){return inv.profit>0?Math.min(100,inv.profitPaid/inv.profit*100):0;}
@@ -1551,9 +1556,10 @@ function openModal(id){
       '<div class="m-row"><span class="m-lbl">Status</span><span class="m-val">'+bdg(inv)+'</span></div>'+
       '<div class="inst-section">'+
       '<div class="inst-head"><span>💰 Investor Profit — '+inv.ipct+'%</span><span style="color:var(--green)">₨ '+fmt(inv.profit)+' total</span></div>'+
-      '<div class="inst-summary">'+
+      '<div class="inst-summary-4">'+
       '<div class="inst-s-card"><span class="inst-s-lbl">Total</span><div class="inst-s-val cy">₨ '+fmt(inv.profit)+'</div></div>'+
-      '<div class="inst-s-card"><span class="inst-s-lbl">Paid</span><div class="inst-s-val g">₨ '+fmt(inv.profitPaid)+'</div></div>'+
+      '<div class="inst-s-card"><span class="inst-s-lbl">Paid (All)</span><div class="inst-s-val g">₨ '+fmt(inv.profitPaid)+'</div></div>'+
+      '<div class="inst-s-card"><span class="inst-s-lbl">Paid (Actual, Non-Pocket)</span><div class="inst-s-val" style="color:var(--blue)">₨ '+fmt(profitPaidNonPocket(inv))+'</div></div>'+
       '<div class="inst-s-card"><span class="inst-s-lbl">Remaining</span><div class="inst-s-val '+(pr>0?'a':'g')+'">₨ '+fmt(pr)+'</div></div>'+
       '</div>'+profitForm+
       '<div class="inst-log">'+piLog()+'</div>'+
@@ -1709,7 +1715,7 @@ function render(){
     if(filter==='closed')rows=D.filter(function(i){return i.closed;});
     set('rowCount',rows.length);
     var tb=document.getElementById('tBody');
-    if(!rows.length){tb.innerHTML='<tr><td colspan="16"><div class="empty"><div class="ei">📋</div><p>No records for this filter.</p></div></td></tr>';return;}
+    if(!rows.length){tb.innerHTML='<tr><td colspan="17"><div class="empty"><div class="ei">📋</div><p>No records for this filter.</p></div></td></tr>';return;}
     tb.innerHTML=rows.map(function(inv,idx){
       var od=overdueDays(inv),pr=profitRem(inv),cr=commRem(inv),pp=profitPct(inv);
       return'<tr'+(inv.closed?' class="row-closed"':'')+'>'+
@@ -1721,6 +1727,7 @@ function render(){
         '<td>'+(od>0?'<span class="overdue-pill">'+od+' days</span>':'<span style="color:var(--green);font-size:11px;font-weight:600">✓ On time</span>')+'</td>'+
         '<td class="cn cy">₨ '+fmt(inv.profit)+'</td>'+
         '<td class="cn cg">₨ '+fmt(inv.profitPaid)+'</td>'+
+        '<td class="cn" style="color:var(--blue)">₨ '+fmt(profitPaidNonPocket(inv))+'</td>'+
         '<td class="cn '+(pr>0?'ca':'cg')+'">₨ '+fmt(pr)+'</td>'+
         '<td><div class="prog-wrap"><div class="prog-bg"><div class="prog-fill '+(pp>=100?'full':'')+'\" style="width:'+pp+'%"></div></div><span class="prog-pct">'+Math.round(pp)+'%</span></div></td>'+
         '<td class="cn ca">₨ '+fmt(inv.commission)+'</td>'+
@@ -1733,13 +1740,14 @@ function render(){
     }).join('');
     var cap=D.filter(function(i){return !i.closed;}).reduce(function(s,i){return s+i.amount;},0);
     var prRem=D.reduce(function(s,i){return s+profitRem(i);},0);
+    var prPaidActual=D.reduce(function(s,i){return s+profitPaidNonPocket(i);},0);
     var odCnt=D.filter(function(i){return cycleStatus(i)==='overdue';}).length;
     var wTot=D.reduce(function(s,i){return s+i.commission+i.history.reduce(function(h,r){return h+r.commission;},0);},0);
     var wPd=totalWajPaid();
     var wRem=D.reduce(function(s,i){return s+commRem(i);},0);
     var wPock=totalPocketAdvances();
     var act=D.filter(function(i){return !i.closed&&cycleStatus(i)!=='paid';}).length;
-    set('sTotal',D.length);set('sCapital','₨ '+fmt(cap));set('sProfit','₨ '+fmt(prRem));set('sOverdue',odCnt);
+    set('sTotal',D.length);set('sCapital','₨ '+fmt(cap));set('sProfit','₨ '+fmt(prRem));set('sProfitPaidActual','₨ '+fmt(prPaidActual));set('sOverdue',odCnt);
     set('wTotal','₨ '+fmt(wTot));set('wPaid','₨ '+fmt(wPd));set('wPending','₨ '+fmt(wRem));set('wPocket','₨ '+fmt(wPock));set('wCycles',act);
   }catch(e){console.error('render:',e);}
 }
@@ -1750,8 +1758,8 @@ function setF(f,el){filter=f;document.querySelectorAll('.tab').forEach(function(
 // EXPORT
 // ════════════════════════════════════════════════════════════════
 function exportCSV(){
-  var h=['#','Name','Amount','Start','Due','Overdue Days','Inv%','Profit','Profit Paid','Profit Rem','Waj%','Comm','Comm Paid','Comm Rem','Cycle','Status','Withdrawn','Principal Returned','Closed'];
-  var r=D.map(function(inv,i){return[i+1,inv.name,inv.amount,inv.startDate,inv.dueDate,overdueDays(inv),inv.ipct+'%',inv.profit,inv.profitPaid,profitRem(inv),inv.wpct+'%',inv.commission,inv.commPaid,commRem(inv),'C'+inv.cycle,cycleStatus(inv),inv.withdrawn?'Yes':'No',inv.withdrawnAmount||0,inv.closed?'Yes':'No'];});
+  var h=['#','Name','Amount','Start','Due','Overdue Days','Inv%','Profit','Profit Paid','Profit Paid (Actual, Non-Pocket)','Profit Rem','Waj%','Comm','Comm Paid','Comm Rem','Cycle','Status','Withdrawn','Principal Returned','Closed'];
+  var r=D.map(function(inv,i){return[i+1,inv.name,inv.amount,inv.startDate,inv.dueDate,overdueDays(inv),inv.ipct+'%',inv.profit,inv.profitPaid,profitPaidNonPocket(inv),profitRem(inv),inv.wpct+'%',inv.commission,inv.commPaid,commRem(inv),'C'+inv.cycle,cycleStatus(inv),inv.withdrawn?'Yes':'No',inv.withdrawnAmount||0,inv.closed?'Yes':'No'];});
   var csv=[h].concat(r).map(function(x){return x.map(function(c){return'"'+String(c||'').replace(/"/g,'""')+'"';}).join(',');}).join('\n');
   var a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([csv],{type:'text/csv'})),download:'TechnoHub_'+tod()+'.csv'});a.click();
   toast('✓ CSV exported.');
@@ -1766,13 +1774,14 @@ function exportJSON(){
       totalInvestors:D.length,
       totalCapital:D.reduce(function(s,i){return s+i.amount;},0),
       totalProfitRemaining:D.reduce(function(s,i){return s+profitRem(i);},0),
+      totalProfitPaidActualNonPocket:D.reduce(function(s,i){return s+profitPaidNonPocket(i);},0),
       overdueCount:D.filter(function(i){return cycleStatus(i)==='overdue';}).length
     },
     investors:D.map(function(inv){
       return{
         name:inv.name,amount:inv.amount,startDate:inv.startDate,dueDate:inv.dueDate,
         investorProfitPct:inv.ipct,commissionPct:inv.wpct,
-        profit:inv.profit,profitPaid:inv.profitPaid,profitRemaining:profitRem(inv),
+        profit:inv.profit,profitPaid:inv.profitPaid,profitPaidActualNonPocket:profitPaidNonPocket(inv),profitRemaining:profitRem(inv),
         commission:inv.commission,commissionPaid:inv.commPaid,commissionRemaining:commRem(inv),
         cycle:inv.cycle,status:cycleStatus(inv),
         profitPayments:inv.profitInstallments,commissionPayments:inv.commInstallments,
@@ -1805,6 +1814,7 @@ var PDF_COLUMN_DEFS=[
   {key:'ipct',header:'Profit %',width:13},
   {key:'profit',header:'Profit Total',width:22},
   {key:'ppaid',header:'Profit Paid',width:22},
+  {key:'ppaid_actual',header:'Profit Paid (Actual)',width:24},
   {key:'prem',header:'Profit Rem.',width:22},
   {key:'wpct',header:'Comm %',width:13},
   {key:'comm',header:'Comm Total',width:22},
@@ -1943,6 +1953,7 @@ function generatePDF(){
       var cap=filteredD.reduce(function(s,i){return s+i.amount;},0);
       var prRem=filteredD.reduce(function(s,i){return s+profitRem(i);},0);
       var prPaid=filteredD.reduce(function(s,i){return s+i.profitPaid;},0);
+      var prPaidActual=filteredD.reduce(function(s,i){return s+profitPaidNonPocket(i);},0);
       var odCnt=filteredD.filter(function(i){return cycleStatus(i)==='overdue';}).length;
       var wTot=filteredD.reduce(function(s,i){return s+i.commission;},0);
       var wPaid=filteredD.reduce(function(s,i){return s+i.commPaid;},0);
@@ -1952,6 +1963,7 @@ function generatePDF(){
         {lbl:'Total Investors',val:String(filteredD.length)},
         {lbl:'Total Capital',val:'Rs. '+fmt(cap)},
         {lbl:'Profit Paid',val:'Rs. '+fmt(prPaid)},
+        {lbl:'Profit Paid (Actual)',val:'Rs. '+fmt(prPaidActual)},
         {lbl:'Profit Remaining',val:'Rs. '+fmt(prRem)},
         {lbl:'Commission Owed',val:'Rs. '+fmt(wTot)},
         {lbl:'Commission Paid',val:'Rs. '+fmt(wPaid)},
@@ -1993,7 +2005,7 @@ function generatePDF(){
           start:inv.startDate,due:inv.dueDate,
           od:overdueDays(inv)>0?overdueDays(inv)+'d':'—',
           ipct:inv.ipct+'%',
-          profit:'Rs.'+fmt(inv.profit),ppaid:'Rs.'+fmt(inv.profitPaid),prem:'Rs.'+fmt(profitRem(inv)),
+          profit:'Rs.'+fmt(inv.profit),ppaid:'Rs.'+fmt(inv.profitPaid),ppaid_actual:'Rs.'+fmt(profitPaidNonPocket(inv)),prem:'Rs.'+fmt(profitRem(inv)),
           wpct:inv.wpct+'%',
           comm:'Rs.'+fmt(inv.commission),cpaid:'Rs.'+fmt(inv.commPaid),crem:'Rs.'+fmt(commRem(inv)),
           cycle:'C'+inv.cycle,status:cycleStatus(inv).toUpperCase()
@@ -2010,7 +2022,7 @@ function generatePDF(){
         columnStyles:{
           num:{cellWidth:8},name:{cellWidth:28},amount:{cellWidth:22},
           start:{cellWidth:18},due:{cellWidth:18},od:{cellWidth:14},
-          ipct:{cellWidth:13},profit:{cellWidth:22},ppaid:{cellWidth:22},prem:{cellWidth:22},
+          ipct:{cellWidth:13},profit:{cellWidth:22},ppaid:{cellWidth:22},ppaid_actual:{cellWidth:24},prem:{cellWidth:22},
           wpct:{cellWidth:13},comm:{cellWidth:22},cpaid:{cellWidth:20},crem:{cellWidth:20},
           cycle:{cellWidth:12},status:{cellWidth:18}
         },
